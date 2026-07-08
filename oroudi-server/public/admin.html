@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>عروضي — لوحة التحكم</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛒</text></svg>">
+<style>
+:root{--paper:#faf6ee;--deep:#f3ecdd;--ink:#241f1a;--soft:#6f6558;--line:#e2d8c5;--tomato:#d92b2b;--leaf:#2e7d4f}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"IBM Plex Sans Arabic",-apple-system,sans-serif;background:var(--paper);color:var(--ink);min-height:100vh}
+.wrap{max-width:960px;margin:0 auto;padding:24px 16px 80px}
+h1{font-size:22px;text-align:center;margin-bottom:4px}
+.sub{text-align:center;color:var(--soft);font-size:13px;margin-bottom:24px}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:18px}
+.card h2{font-size:16px;margin-bottom:12px}
+label{display:block;font-size:13px;color:var(--soft);margin:10px 0 4px}
+input,textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;font:inherit;font-size:14px;background:#fff}
+textarea{min-height:180px;direction:ltr;text-align:left;font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+button{border:0;border-radius:9px;padding:9px 18px;font:inherit;font-weight:700;font-size:14px;cursor:pointer;background:var(--tomato);color:#fff}
+button.ghost{background:var(--deep);color:var(--ink)}
+button.small{padding:5px 12px;font-size:12.5px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row > *{flex:1;min-width:130px}
+.row > button{flex:0}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:right}
+th{color:var(--soft);font-weight:600;font-size:12px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:6px;vertical-align:middle}
+.badge{display:inline-block;border-radius:99px;padding:2px 10px;font-size:11.5px;font-weight:700}
+.on{background:#e5f2e9;color:var(--leaf)} .off{background:#f7e4e4;color:var(--tomato)}
+.stat{display:inline-block;background:var(--deep);border-radius:12px;padding:12px 20px;margin:4px;text-align:center;min-width:120px}
+.stat b{display:block;font-size:22px}
+.stat span{font-size:12px;color:var(--soft)}
+pre{background:var(--deep);border-radius:9px;padding:10px;font-size:11.5px;direction:ltr;text-align:left;overflow:auto;max-height:260px;margin-top:10px}
+.msg{margin-top:10px;font-size:13px;font-weight:700}
+.msg.ok{color:var(--leaf)} .msg.err{color:var(--tomato)}
+#app{display:none}
+.seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;width:fit-content}
+.seg button{background:#fff;color:var(--ink);border-radius:0;padding:8px 18px;font-weight:700}
+.seg button.active{background:var(--ink);color:#fff}
+.pickrow{display:flex;gap:8px;align-items:center;margin-top:8px}
+.pickrow input{flex:1}
+.pickbtn{background:var(--leaf);white-space:nowrap;padding:8px 12px;font-size:12.5px}
+.pickbtn.armed{background:var(--tomato)}
+.pickbtn.done{background:var(--ink)}
+.pickerWrap{margin-top:14px;border:1px solid var(--line);border-radius:12px;overflow:hidden;display:none}
+.pickerBar{background:var(--deep);padding:8px 12px;font-size:12.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pickerBar b{color:var(--tomato)}
+iframe#pickerFrame{width:100%;height:520px;border:0;background:#fff}
+.fieldGrid{display:grid;grid-template-columns:1fr;gap:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🛒 عروضي — لوحة التحكم</h1>
+  <p class="sub">المتاجر، الإحصائيات، والإشعارات الجماعية</p>
+
+  <div class="card" id="login">
+    <h2>تسجيل الدخول</h2>
+    <label>رمز الإدارة (ADMIN_TOKEN)</label>
+    <div class="row">
+      <input id="token" type="password" placeholder="oroudi-admin">
+      <button onclick="login()">دخول</button>
+    </div>
+    <div class="msg err" id="loginMsg"></div>
+  </div>
+
+  <div id="app">
+    <div class="card">
+      <h2>📊 الإحصائيات</h2>
+      <div id="stats"></div>
+      <h2 style="margin-top:18px">🔎 أكثر ما يبحث عنه زوارك</h2>
+      <table id="topQueries"></table>
+      <h2 style="margin-top:18px">🩺 صحة المتاجر (آخر ٧ أيام)</h2>
+      <table id="health"></table>
+    </div>
+
+    <div class="card">
+      <h2>🏪 المتاجر</h2>
+      <table id="stores"></table>
+      <button class="ghost" style="margin-top:12px" onclick="newStore()">+ إضافة متجر جديد</button>
+    </div>
+
+    <div class="card" id="editor" style="display:none">
+      <h2 id="editorTitle">إضافة متجر</h2>
+      <div class="row">
+        <div><label>المعرف (لاتيني قصير)</label><input id="s_key" placeholder="carrefour"></div>
+        <div><label>الاسم بالعربي</label><input id="s_ar" placeholder="كارفور"></div>
+        <div><label>الاسم بالإنجليزي</label><input id="s_en" placeholder="Carrefour"></div>
+        <div><label>اللون</label><input id="s_color" type="color" value="#888888" style="height:38px;padding:3px"></div>
+      </div>
+      <label>طريقة القراءة</label>
+      <div class="seg">
+        <button id="modeJsonBtn" class="active" onclick="setMode('json')">🔗 JSON (API)</button>
+        <button id="modeHtmlBtn" onclick="setMode('html')">🖱️ HTML (اختيار بالنقر)</button>
+      </div>
+
+      <div id="jsonPanel">
+        <label>إعدادات القراءة (JSON) — {q} الكلمة، {lang} اللغة</label>
+        <textarea id="s_config" spellcheck="false"></textarea>
+      </div>
+
+      <div id="htmlPanel" style="display:none">
+        <label>رابط صفحة البحث في المتجر — استخدم {q} مكان كلمة البحث</label>
+        <input id="h_url" placeholder="https://store.com/search?q={q}">
+        <div class="row" style="margin-top:8px">
+          <button class="ghost" onclick="loadPicker()">🔎 تحميل الصفحة للاختيار</button>
+        </div>
+
+        <div class="pickerWrap" id="pickerWrap">
+          <div class="pickerBar">
+            <span id="pickerStatus">اضغط «حدد بطاقة المنتج» ثم انقر على أي منتج في المعاينة</span>
+          </div>
+          <iframe id="pickerFrame" sandbox="allow-scripts allow-same-origin"></iframe>
+        </div>
+
+        <div style="margin-top:14px" class="fieldGrid">
+          <label>بطاقة المنتج (العنصر المتكرر لكل منتج)</label>
+          <div class="pickrow">
+            <input id="h_item" placeholder="مثال: .product-card" readonly>
+            <button class="pickbtn" data-field="item" onclick="armPick('item')">🖱️ حدد بطاقة المنتج</button>
+          </div>
+
+          <label style="margin-top:10px">اسم المنتج</label>
+          <div class="pickrow">
+            <input id="h_name" placeholder="مثال: .title" readonly>
+            <button class="pickbtn" data-field="name" onclick="armPick('name')">🖱️ اختر</button>
+          </div>
+
+          <label style="margin-top:10px">السعر الحالي</label>
+          <div class="pickrow">
+            <input id="h_price" placeholder="مثال: .price" readonly>
+            <button class="pickbtn" data-field="price" onclick="armPick('price')">🖱️ اختر</button>
+          </div>
+
+          <label style="margin-top:10px">السعر قبل الخصم (اختياري)</label>
+          <div class="pickrow">
+            <input id="h_original_price" placeholder="مثال: .old-price" readonly>
+            <button class="pickbtn" data-field="original_price" onclick="armPick('original_price')">🖱️ اختر</button>
+          </div>
+
+          <label style="margin-top:10px">الصورة</label>
+          <div class="pickrow">
+            <input id="h_image" placeholder="مثال: img" readonly>
+            <button class="pickbtn" data-field="image" onclick="armPick('image')">🖱️ اختر</button>
+          </div>
+
+          <label style="margin-top:10px">رابط المنتج</label>
+          <div class="pickrow">
+            <input id="h_url_sel" placeholder="مثال: a" readonly>
+            <button class="pickbtn" data-field="url" onclick="armPick('url')">🖱️ اختر</button>
+          </div>
+
+          <label style="margin-top:10px">العلامة التجارية (اختياري)</label>
+          <div class="pickrow">
+            <input id="h_brand" placeholder="مثال: .brand" readonly>
+            <button class="pickbtn" data-field="brand" onclick="armPick('brand')">🖱️ اختر</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <input id="s_testq" placeholder="كلمة اختبار… (حليب)" style="max-width:200px">
+        <button class="ghost" onclick="testStore()">🧪 اختبار الإعدادات</button>
+        <button onclick="saveStore()">💾 حفظ المتجر</button>
+        <button class="ghost" onclick="hide('editor')">إلغاء</button>
+      </div>
+      <div class="msg" id="testMsg"></div>
+      <pre id="testOut" style="display:none"></pre>
+    </div>
+
+    <div class="card">
+      <h2>🕛 التحديث التلقائي</h2>
+      <p class="sub" style="text-align:right;margin-bottom:8px">
+        الخادم يجلب هذه الكلمات من كل المتاجر تلقائيًا الساعة ١٢ ليلًا و١٢ ظهرًا،
+        فتبقى الأسعار و«العروض» محدثة حتى بلا زوار. آخر تحديث: <b id="lastRefresh">—</b>
+      </p>
+      <label>الكلمات المتتبعة (كلمة في كل سطر)</label>
+      <textarea id="tracked" style="min-height:120px;direction:rtl;text-align:right;font-family:inherit;font-size:14px"></textarea>
+      <div class="row" style="margin-top:12px">
+        <button class="ghost" onclick="saveTracked()">💾 حفظ الكلمات</button>
+        <button onclick="refreshNow()">⟳ تحديث الآن</button>
+      </div>
+      <div class="msg" id="trackedMsg"></div>
+    </div>
+
+    <div class="card">
+      <h2>🔔 إرسال إشعار جماعي</h2>
+      <p class="sub" style="text-align:right;margin-bottom:8px">يصل لكل الأجهزة المسجلة عبر Expo Push</p>
+      <label>العنوان</label><input id="n_title" placeholder="🏷️ عروض اليوم نزلت!">
+      <label>النص</label><input id="n_body" placeholder="خصومات تصل ٧٠٪ — قارن قبل تشتري">
+      <div class="row" style="margin-top:12px"><button onclick="notify()">إرسال للجميع</button></div>
+      <div class="msg" id="notifyMsg"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let TOKEN = localStorage.getItem('oroudi_token') || '';
+const $ = (id) => document.getElementById(id);
+const hide = (id) => $(id).style.display = 'none';
+const show = (id) => $(id).style.display = 'block';
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', 'x-admin-token': TOKEN, ...(opts.headers||{}) },
+  });
+  const json = await res.json().catch(() => ({}));
+  if (res.status === 401) { localStorage.removeItem('oroudi_token'); throw new Error(json.error || 'رمز غير صحيح'); }
+  if (!res.ok) throw new Error(json.error || ('HTTP ' + res.status));
+  return json;
+}
+
+async function login() {
+  TOKEN = $('token').value.trim();
+  try {
+    await api('/api/admin/stats');
+    localStorage.setItem('oroudi_token', TOKEN);
+    hide('login'); show('app');
+    refresh();
+  } catch (e) { $('loginMsg').textContent = e.message; }
+}
+
+const CONFIG_TEMPLATE = {
+  search_url: 'https://store.com/api/search?q={q}',
+  headers: { 'Accept-Language': '{lang}', 'User-Agent': 'Mozilla/5.0' },
+  results_path: 'data.products',
+  fields: {
+    id: 'id', name: 'title', brand: 'brand.name', image: 'images.0',
+    url: 'slug', unit: 'size', price: 'price', original_price: 'old_price',
+    stock: 'qty',
+  },
+  url_prefix: 'https://store.com/product/',
+};
+
+let editorMode = 'json';
+function setMode(mode) {
+  editorMode = mode;
+  $('modeJsonBtn').classList.toggle('active', mode === 'json');
+  $('modeHtmlBtn').classList.toggle('active', mode === 'html');
+  $('jsonPanel').style.display = mode === 'json' ? '' : 'none';
+  $('htmlPanel').style.display = mode === 'html' ? '' : 'none';
+}
+
+function resetHtmlFields() {
+  ['h_url', 'h_item', 'h_name', 'h_price', 'h_original_price', 'h_image', 'h_url_sel', 'h_brand']
+    .forEach((id) => { $(id).value = ''; });
+  document.querySelectorAll('.pickbtn').forEach((b) => b.classList.remove('done', 'armed'));
+  hide('pickerWrap');
+}
+
+function newStore() {
+  $('editorTitle').textContent = 'إضافة متجر';
+  $('s_key').value = ''; $('s_ar').value = ''; $('s_en').value = '';
+  $('s_color').value = '#888888';
+  $('s_config').value = JSON.stringify(CONFIG_TEMPLATE, null, 2);
+  resetHtmlFields();
+  setMode('json');
+  $('testMsg').textContent = ''; hide('testOut'); show('editor');
+  $('editor').scrollIntoView({ behavior: 'smooth' });
+}
+
+let storesCache = [];
+function editStore(key) {
+  const s = storesCache.find((x) => x.key === key);
+  if (!s) return;
+  $('editorTitle').textContent = 'تعديل: ' + s.name_ar;
+  $('s_key').value = s.key; $('s_ar').value = s.name_ar; $('s_en').value = s.name_en;
+  $('s_color').value = s.color;
+  $('s_config').value = s.config;
+  resetHtmlFields();
+
+  let cfg = {};
+  try { cfg = JSON.parse(s.config); } catch {}
+  if (cfg.type === 'html') {
+    setMode('html');
+    $('h_url').value = cfg.search_url || '';
+    $('h_item').value = cfg.item_selector || '';
+    const f = cfg.fields || {};
+    $('h_name').value = f.name?.sel || '';
+    $('h_price').value = f.price?.sel || '';
+    $('h_original_price').value = f.original_price?.sel || '';
+    $('h_image').value = f.image?.sel || '';
+    $('h_url_sel').value = f.url?.sel || '';
+    $('h_brand').value = f.brand?.sel || '';
+  } else {
+    setMode('json');
+  }
+  $('testMsg').textContent = ''; hide('testOut'); show('editor');
+  $('editor').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ---------- الاختيار البصري بالنقر (وضع HTML) ----------
+
+let pickerFrameWin = null;
+let armedField = null;
+
+async function loadPicker() {
+  const url = $('h_url').value.trim();
+  if (!url) { $('pickerStatus').textContent = '❌ ضع رابط صفحة البحث أولًا'; return; }
+  $('pickerStatus').textContent = '… جارٍ التحميل';
+  show('pickerWrap');
+  try {
+    const res = await fetch('/api/admin/proxy-html?url=' + encodeURIComponent(url.replace('{q}', 'حليب')), {
+      headers: { 'x-admin-token': TOKEN },
+    });
+    if (!res.ok) { const j = await res.json().catch(()=>({})); throw new Error(j.error || ('HTTP ' + res.status)); }
+    const html = await res.text();
+    const frame = $('pickerFrame');
+    frame.srcdoc = html;
+    frame.onload = () => { pickerFrameWin = frame.contentWindow; };
+    $('pickerStatus').innerHTML = 'اضغط <b>«حدد بطاقة المنتج»</b> بالأسفل، ثم انقر على أي منتج في المعاينة';
+  } catch (e) { $('pickerStatus').textContent = '❌ ' + e.message; }
+}
+
+function armPick(field) {
+  if (field !== 'item' && !$('h_item').value) {
+    $('pickerStatus').textContent = '❌ حدد بطاقة المنتج أولًا';
+    return;
+  }
+  armedField = field;
+  document.querySelectorAll('.pickbtn').forEach((b) => b.classList.remove('armed'));
+  document.querySelector(`.pickbtn[data-field="${field}"]`)?.classList.add('armed');
+  $('pickerStatus').textContent = '👆 الآن انقر على العنصر المطلوب داخل المعاينة';
+  pickerFrameWin?.postMessage({ type: 'oroudi-set-mode', mode: field }, '*');
+}
+
+window.addEventListener('message', (e) => {
+  if (!e.data || e.data.type !== 'oroudi-pick') return;
+  const { mode, selector, attr, count, text } = e.data;
+  const map = {
+    item: 'h_item', name: 'h_name', price: 'h_price', original_price: 'h_original_price',
+    image: 'h_image', url: 'h_url_sel', brand: 'h_brand',
+  };
+  if (map[mode]) $(map[mode]).value = selector;
+  document.querySelector(`.pickbtn[data-field="${mode}"]`)?.classList.add('done');
+  document.querySelector(`.pickbtn[data-field="${mode}"]`)?.classList.remove('armed');
+
+  if (mode === 'item') {
+    $('pickerStatus').innerHTML = `✅ بطاقة المنتج: <b>${selector}</b> — وجدنا ${count} عنصرًا مطابقًا. الآن اختر بقية الحقول بالأسفل`;
+  } else {
+    $('pickerStatus').innerHTML = `✅ ${mode}: <b>${selector}</b>${attr ? ' [' + attr + ']' : ''} — القيمة: «${text || ''}»`;
+  }
+  armedField = null;
+  pickerFrameWin?.postMessage({ type: 'oroudi-set-mode', mode: null }, '*');
+});
+
+function buildHtmlConfig() {
+  const field = (sel, attr) => (sel ? { sel, ...(attr ? { attr } : {}) } : undefined);
+  const fields = {
+    name: field($('h_name').value),
+    price: field($('h_price').value),
+    original_price: field($('h_original_price').value),
+    image: field($('h_image').value, 'src'),
+    url: field($('h_url_sel').value, 'href'),
+    brand: field($('h_brand').value),
+  };
+  Object.keys(fields).forEach((k) => fields[k] === undefined && delete fields[k]);
+  return {
+    type: 'html',
+    search_url: $('h_url').value.trim(),
+    item_selector: $('h_item').value.trim(),
+    fields,
+    url_prefix: new URL($('h_url').value.trim().split('{q}')[0] || 'https://x.com').origin,
+  };
+}
+
+function currentConfig() {
+  return editorMode === 'html' ? buildHtmlConfig() : $('s_config').value;
+}
+
+async function testStore() {
+  $('testMsg').textContent = '… جارٍ الاختبار'; $('testMsg').className = 'msg';
+  hide('testOut');
+  try {
+    const r = await api('/api/admin/test', { method: 'POST', body: JSON.stringify({
+      config: currentConfig(), q: $('s_testq').value || 'حليب',
+      name_ar: $('s_ar').value, name_en: $('s_en').value, color: $('s_color').value,
+    })});
+    if (r.ok) {
+      $('testMsg').textContent = `✅ نجح — ${r.count} نتيجة، هذه عيّنة:`;
+      $('testMsg').className = 'msg ok';
+      $('testOut').textContent = JSON.stringify(r.sample, null, 2); show('testOut');
+    } else {
+      $('testMsg').textContent = '❌ ' + r.error; $('testMsg').className = 'msg err';
+    }
+  } catch (e) { $('testMsg').textContent = '❌ ' + e.message; $('testMsg').className = 'msg err'; }
+}
+
+async function saveStore() {
+  try {
+    await api('/api/admin/stores', { method: 'POST', body: JSON.stringify({
+      key: $('s_key').value.trim(), name_ar: $('s_ar').value.trim(),
+      name_en: $('s_en').value.trim(), color: $('s_color').value,
+      config: currentConfig(),
+    })});
+    hide('editor'); refresh();
+  } catch (e) { $('testMsg').textContent = '❌ ' + e.message; $('testMsg').className = 'msg err'; }
+}
+
+async function toggleStore(key) { await api(`/api/admin/stores/${key}/toggle`, { method: 'POST' }); refresh(); }
+async function deleteStore(key) {
+  if (!confirm(`حذف متجر ${key} نهائيًا؟`)) return;
+  await api(`/api/admin/stores/${key}`, { method: 'DELETE' }); refresh();
+}
+
+async function notify() {
+  $('notifyMsg').textContent = '… جارٍ الإرسال'; $('notifyMsg').className = 'msg';
+  try {
+    const r = await api('/api/admin/notify', { method: 'POST', body: JSON.stringify({
+      title: $('n_title').value.trim(), body: $('n_body').value.trim(),
+    })});
+    $('notifyMsg').textContent = `✅ أُرسل إلى ${r.sent} جهاز`;
+    $('notifyMsg').className = 'msg ok';
+  } catch (e) { $('notifyMsg').textContent = '❌ ' + e.message; $('notifyMsg').className = 'msg err'; }
+}
+
+async function saveTracked() {
+  try {
+    const queries = $('tracked').value.split('\n').map((s) => s.trim()).filter(Boolean);
+    const r = await api('/api/admin/tracked', { method: 'POST', body: JSON.stringify({ queries }) });
+    $('trackedMsg').textContent = `✅ حُفظت ${r.count} كلمة`;
+    $('trackedMsg').className = 'msg ok';
+  } catch (e) { $('trackedMsg').textContent = '❌ ' + e.message; $('trackedMsg').className = 'msg err'; }
+}
+
+async function refreshNow() {
+  try {
+    await api('/api/admin/refresh', { method: 'POST' });
+    $('trackedMsg').textContent = '⟳ بدأ التحديث في الخلفية — حدّث الصفحة بعد دقيقة لرؤية النتيجة';
+    $('trackedMsg').className = 'msg ok';
+  } catch (e) { $('trackedMsg').textContent = '❌ ' + e.message; $('trackedMsg').className = 'msg err'; }
+}
+
+async function refresh() {
+  const [stats, storesRes, tracked] = await Promise.all([
+    api('/api/admin/stats'), api('/api/admin/stores'), api('/api/admin/tracked'),
+  ]);
+  storesCache = storesRes.stores;
+  $('tracked').value = tracked.queries.join('\n');
+  $('lastRefresh').textContent = stats.lastRefresh
+    ? `${new Date(stats.lastRefresh.at).toLocaleString('ar-SA')} (${stats.lastRefresh.ok} نجاح، ${stats.lastRefresh.failed} فشل)`
+    : 'لم يجرِ بعد';
+
+  $('stats').innerHTML = `
+    <div class="stat"><b>${stats.totalSearches}</b><span>بحث إجمالي</span></div>
+    <div class="stat"><b>${stats.todaySearches}</b><span>بحث اليوم</span></div>
+    <div class="stat"><b>${stats.devices}</b><span>جهاز مسجّل</span></div>
+    <div class="stat"><b>${storesCache.filter(s=>s.enabled).length}/${storesCache.length}</b><span>متجر فعّال</span></div>`;
+
+  $('topQueries').innerHTML = '<tr><th>الكلمة</th><th>مرات البحث</th></tr>' +
+    (stats.topQueries.map((q) => `<tr><td>${q.query}</td><td>${q.n}</td></tr>`).join('') ||
+     '<tr><td colspan="2" style="color:var(--soft)">لا توجد عمليات بحث بعد</td></tr>');
+
+  $('health').innerHTML = '<tr><th>المتجر</th><th>نجاح</th><th>فشل</th><th>متوسط (مللي)</th><th>آخر تشغيل</th></tr>' +
+    (stats.storeHealth.map((h) => `<tr><td>${h.store_key}</td><td>${h.ok_count}</td><td>${h.fail_count}</td><td>${h.avg_ms}</td><td dir="ltr">${h.last_run}</td></tr>`).join('') ||
+     '<tr><td colspan="5" style="color:var(--soft)">لا سجلات بعد</td></tr>');
+
+  $('stores').innerHTML = '<tr><th>المتجر</th><th>الحالة</th><th></th></tr>' +
+    storesCache.map((s) => `<tr>
+      <td><span class="dot" style="background:${s.color}"></span>${s.name_ar} <span style="color:var(--soft);font-size:11px">(${s.key})</span></td>
+      <td><span class="badge ${s.enabled ? 'on' : 'off'}">${s.enabled ? 'فعّال' : 'معطّل'}</span></td>
+      <td style="text-align:left">
+        <button class="small ghost" onclick="editStore('${s.key}')">تعديل</button>
+        <button class="small ghost" onclick="toggleStore('${s.key}')">${s.enabled ? 'تعطيل' : 'تفعيل'}</button>
+        <button class="small" onclick="deleteStore('${s.key}')">حذف</button>
+      </td></tr>`).join('');
+}
+
+if (TOKEN) { $('token').value = TOKEN; login(); }
+</script>
+</body>
+</html>
