@@ -129,6 +129,17 @@ async function scrapeViaBrowser(cfg, q, lang, timeoutMs) {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
     await page.waitForTimeout(cfg.wait_ms || 4000);
 
+    // بعض المواقع تحمّل الصور بتحميل كسول (lazy) فقط عند التمرير — نمرر
+    // للأسفل تدريجيًا حتى تُحمَّل كل بطاقات النتائج قبل قراءة الصفحة.
+    if (cfg.scroll) {
+      for (let i = 0; i < 8; i++) {
+        await page.evaluate(() => window.scrollBy(0, window.innerHeight));
+        await page.waitForTimeout(400);
+      }
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(500);
+    }
+
     if (cfg.extract === 'next_data') {
       const raw = await page.evaluate(() => {
         const s = document.getElementById('__NEXT_DATA__');
