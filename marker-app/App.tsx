@@ -59,6 +59,15 @@ export default function App() {
     registerPushToken();
   }, []);
 
+  // اتجاه صفحة الويب حسب اللغة (RTL للعربية) — يضبط شريط التمرير ومحاذاة
+  // العناصر الأصلية بشكل صحيح في المتصفح.
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.documentElement.dir = rtl ? 'rtl' : 'ltr';
+      document.documentElement.lang = lang;
+    }
+  }, [rtl, lang]);
+
   if (!fontsLoaded) {
     return (
       <View style={[styles.root, styles.loading]}>

@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import type { Lang } from './i18n';
+import { filterRelevant } from './relevance';
 
 export interface Product {
   chain: string;
@@ -74,7 +75,9 @@ export async function searchProducts(
   );
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
-  return (json.results ?? []) as Product[];
+  const results = (json.results ?? []) as Product[];
+  // فلتر دقة في التطبيق نفسه (لا يعتمد على نشر الخادم)
+  return filterRelevant(results, query);
 }
 
 export async function fetchCities(): Promise<{ cities: City[]; selected: string }> {
