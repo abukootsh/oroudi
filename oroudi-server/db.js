@@ -300,6 +300,37 @@ CREATE TABLE IF NOT EXISTS settings (
       2,
     ),
   );
+
+  // ٨) لولو — خلف Cloudflare يكتشف المتصفح الآلي؛ نمط «متخفٍّ» (stealth)
+  //    بمتصفح غير-headless + إخفاء علامات الأتمتة يتجاوزه (بلا بروكسي).
+  //    استخراج مخصص لبنية Akinon (أصناف CSS عشوائية).
+  insert.run(
+    'lulu',
+    'لولو',
+    'Lulu',
+    '#2e9e49',
+    1,
+    JSON.stringify(
+      {
+        type: 'browser',
+        stealth: true,
+        warmup_url: 'https://gcc.luluhypermarket.com/ar-sa',
+        search_url: 'https://gcc.luluhypermarket.com/ar-sa/list/?search_text={q}',
+        wait_until: 'networkidle',
+        scroll: true,
+        extract: 'lulu',
+        fields: {
+          name: 'name',
+          price: 'price',
+          image: 'image',
+          url: 'url',
+        },
+        url_prefix: 'https://gcc.luluhypermarket.com',
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 module.exports = db;

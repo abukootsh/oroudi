@@ -22,13 +22,16 @@ jobs:
         working-directory: oroudi-server
         run: npm ci
 
-      - name: تثبيت Chrome حقيقي
+      - name: تثبيت Chrome حقيقي + شاشة وهمية (xvfb)
         working-directory: oroudi-server
-        run: npx playwright install --with-deps chrome
+        run: |
+          npx playwright install --with-deps chrome
+          sudo apt-get install -y xvfb
 
       - name: تشغيل السكرابر
         working-directory: oroudi-server
         env:
           ADMIN_TOKEN: ${{ secrets.OROUDI_ADMIN_TOKEN }}
           OROUDI_SERVER: https://oroudi-server.onrender.com
-        run: node scrape-hard-stores.js
+        # xvfb-run يوفّر شاشة وهمية للمتصفح المتخفّي (لولو) غير-headless
+        run: xvfb-run -a node scrape-hard-stores.js

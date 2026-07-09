@@ -103,30 +103,47 @@ function absolutize(value, prefix) {
   return (prefix || '') + s;
 }
 
-// متصفح Chrome حقيقي واحد يُعاد استخدامه لكل طلبات نمط "browser" — إطلاق
-// متصفح جديد كل مرة يبطئ ويستهلك ذاكرة أكبر بكثير على الاستضافة المجانية.
-let sharedBrowser = null;
+// متصفح Chrome حقيقي واحد يُعاد استخدامه لكل طلبات نمط "browser".
+// نمطان: عادي (headless)، و«متخفٍّ» (stealth: headless:false + إخفاء علامات
+// الأتمتة) للمواقع التي يكتشف Cloudflare متصفحها الآلي ويحجبه (مثل لولو).
+// المتخفّي يحتاج شاشة — على GitHub Actions يُشغَّل عبر xvfb-run.
+const browsers = { normal: null, stealth: null };
 
-async function getSharedBrowser() {
-  if (sharedBrowser) return sharedBrowser;
+async function getSharedBrowser(stealth) {
+  const key = stealth ? 'stealth' : 'normal';
+  if (browsers[key]) return browsers[key];
   const { chromium } = require('playwright');
-  sharedBrowser = await chromium.launch({
+  browsers[key] = await chromium.launch({
     channel: 'chrome',
-    args: ['--disable-dev-shm-usage'],
+    headless: !stealth,
+    args: [
+      '--disable-dev-shm-usage',
+      ...(stealth ? ['--disable-blink-features=AutomationControlled'] : []),
+    ],
   });
-  return sharedBrowser;
+  return browsers[key];
 }
 
 async function scrapeViaBrowser(cfg, q, lang, timeoutMs) {
-  const browser = await getSharedBrowser();
+  const browser = await getSharedBrowser(cfg.stealth);
   const context = await browser.newContext({
     userAgent:
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36',
   });
   const page = await context.newPage();
   try {
+    if (cfg.stealth) {
+      await page.addInitScript(() => {
+        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+      });
+    }
+    // بعض المواقع (لولو) تتطلب زيارة الصفحة الرئيسية أولًا لاجتياز تحدي الحماية
+    if (cfg.warmup_url) {
+      await page.goto(cfg.warmup_url, { waitUntil: 'domcontentloaded', timeout: timeoutMs }).catch(() => {});
+      await page.waitForTimeout(2500);
+    }
     const url = substitute(cfg.search_url, q, lang);
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
+    await page.goto(url, { waitUntil: cfg.wait_until || 'domcontentloaded', timeout: timeoutMs });
     await page.waitForTimeout(cfg.wait_ms || 4000);
 
     // بعض المواقع تحمّل الصور بتحميل كسول (lazy) فقط عند التمرير — نمرر
@@ -151,6 +168,39 @@ async function scrapeViaBrowser(cfg, q, lang, timeoutMs) {
       if (arr == null) arr = [];
       if (!Array.isArray(arr)) throw new Error(`results_path "${cfg.results_path}" لم يُرجع مصفوفة`);
       return { rows: arr, get: getPath };
+    }
+
+    // استخراج مخصص لبنية معقدة بأصناف CSS عشوائية (لولو): نجمع المنتجات
+    // بجافاسكربت موثوق داخل الصفحة (اسم من alt الصورة، سعر من نص البطاقة).
+    if (cfg.extract === 'lulu') {
+      const rows = await page.evaluate(() => {
+        const seen = new Set();
+        const out = [];
+        for (const a of document.querySelectorAll('a[href*="/p/"]')) {
+          const href = a.getAttribute('href');
+          if (!href || seen.has(href)) continue;
+          seen.add(href);
+          const img = a.querySelector('img[srcset*=akinon],img[src*=akinon]');
+          const name = img ? (img.getAttribute('alt') || '').replace(/ hover image$/, '') : '';
+          const image = img ? (img.getAttribute('srcset') || img.getAttribute('src') || '').split(' ')[0] : '';
+          let node = a;
+          let price = null;
+          for (let i = 0; i < 8 && node; i++) {
+            // كل الأرقام بصيغة سعر، مع استبعاد ما يليه وحدة قياس (حجم المنتج
+            // مثل «2.85 لتر»)؛ السعر عادة آخر رقم في البطاقة.
+            const nums = [
+              ...(node.innerText || '').matchAll(
+                /(\d+\.\d{2})(?!\s*(?:لتر|مل|كجم|كغم|جم|جرام|غرام|كيلو|g|kg|ml|ltr|l\b))/gi,
+              ),
+            ];
+            if (nums.length) { price = nums[nums.length - 1][1]; break; }
+            node = node.parentElement;
+          }
+          if (name && price) out.push({ name, price, url: href.replace(/\?$/, ''), image });
+        }
+        return out;
+      });
+      return { rows, get: getPath };
     }
 
     const html = await page.content();
