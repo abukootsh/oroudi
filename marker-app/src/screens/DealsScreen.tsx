@@ -1,18 +1,13 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { fetchDeals, Product, productKey } from '../api';
 import ProductCard from '../components/ProductCard';
 import { Lang, t } from '../i18n';
-import { colors, fonts } from '../theme';
+import { colors, fonts, radius, space } from '../theme';
 
 export default function DealsScreen({ lang }: { lang: Lang }) {
+  const rtl = lang === 'ar';
   const [deals, setDeals] = useState<Product[] | null>(null);
   const [error, setError] = useState(false);
 
@@ -28,11 +23,19 @@ export default function DealsScreen({ lang }: { lang: Lang }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>🏷️ {t('dealsTitle', lang)}</Text>
-      <Text style={styles.hint}>{t('dealsHint', lang)}</Text>
+      <View style={[styles.head, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+        <View style={styles.headIcon}>
+          <Ionicons name="pricetags" size={18} color={colors.accent} />
+        </View>
+        <View style={{ flex: 1, alignItems: rtl ? 'flex-end' : 'flex-start' }}>
+          <Text style={styles.title}>{t('dealsTitle', lang)}</Text>
+          <Text style={styles.hint}>{t('dealsHint', lang)}</Text>
+        </View>
+      </View>
 
       {error ? (
         <View style={styles.centerWrap}>
+          <Ionicons name="cloud-offline-outline" size={44} color={colors.inkFaint} />
           <Text style={styles.centerText}>{t('error', lang)}</Text>
           <Pressable style={styles.retryButton} onPress={load}>
             <Text style={styles.retryText}>{t('retry', lang)}</Text>
@@ -40,7 +43,7 @@ export default function DealsScreen({ lang }: { lang: Lang }) {
         </View>
       ) : deals === null ? (
         <View style={styles.centerWrap}>
-          <ActivityIndicator size="large" color={colors.tomato} />
+          <ActivityIndicator size="large" color={colors.accent} />
           <Text style={styles.centerText}>{t('loading', lang)}</Text>
         </View>
       ) : (
@@ -62,28 +65,30 @@ export default function DealsScreen({ lang }: { lang: Lang }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  title: {
-    fontSize: 18,
-    fontFamily: fonts.bold,
-    color: colors.ink,
-    textAlign: 'center',
-    marginBottom: 2,
+  head: {
+    alignItems: 'center',
+    gap: space.md,
+    paddingHorizontal: space.lg,
+    marginBottom: space.md,
   },
-  hint: {
-    fontSize: 12,
-    fontFamily: fonts.medium,
-    color: colors.inkSoft,
-    textAlign: 'center',
-    marginBottom: 12,
+  headIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  centerWrap: { alignItems: 'center', paddingTop: 48, gap: 14 },
+  title: { fontSize: 18, fontFamily: fonts.bold, color: colors.ink },
+  hint: { fontSize: 12, fontFamily: fonts.medium, color: colors.inkSoft, marginTop: 1 },
+  centerWrap: { alignItems: 'center', paddingTop: 48, gap: space.md },
   centerText: { fontSize: 14, color: colors.inkSoft, fontFamily: fonts.medium, textAlign: 'center' },
   retryButton: {
-    backgroundColor: colors.tomato,
-    borderRadius: 99,
-    paddingHorizontal: 22,
-    paddingVertical: 9,
+    backgroundColor: colors.accent,
+    borderRadius: radius.pill,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
   },
   retryText: { color: colors.white, fontFamily: fonts.semibold, fontSize: 14 },
-  list: { paddingBottom: 24 },
+  list: { paddingBottom: space.xl },
 });

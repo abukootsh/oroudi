@@ -1,20 +1,30 @@
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { productKey } from '../api';
 import ProductCard from '../components/ProductCard';
 import { useFavorites } from '../favorites';
 import { Lang, t } from '../i18n';
-import { colors, fonts } from '../theme';
+import { colors, fonts, radius, space } from '../theme';
 
 export default function FavoritesScreen({ lang }: { lang: Lang }) {
+  const rtl = lang === 'ar';
   const { favorites } = useFavorites();
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>♥ {t('tabFavorites', lang)}</Text>
+      <View style={[styles.head, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+        <View style={styles.headIcon}>
+          <Ionicons name="heart" size={18} color={colors.danger} />
+        </View>
+        <Text style={styles.title}>{t('tabFavorites', lang)}</Text>
+      </View>
+
       {favorites.length === 0 ? (
         <View style={styles.centerWrap}>
-          <Text style={styles.emptyEmoji}>🤍</Text>
+          <View style={styles.emptyCircle}>
+            <Ionicons name="heart-outline" size={40} color={colors.inkFaint} />
+          </View>
           <Text style={styles.centerText}>{t('favoritesEmpty', lang)}</Text>
         </View>
       ) : (
@@ -31,15 +41,30 @@ export default function FavoritesScreen({ lang }: { lang: Lang }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  title: {
-    fontSize: 18,
-    fontFamily: fonts.bold,
-    color: colors.ink,
-    textAlign: 'center',
-    marginBottom: 12,
+  head: {
+    alignItems: 'center',
+    gap: space.md,
+    paddingHorizontal: space.lg,
+    marginBottom: space.md,
   },
-  centerWrap: { alignItems: 'center', paddingTop: 60, gap: 10 },
-  emptyEmoji: { fontSize: 44 },
+  headIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: '#FDECEC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: { fontSize: 18, fontFamily: fonts.bold, color: colors.ink },
+  centerWrap: { alignItems: 'center', paddingTop: 60, gap: space.lg },
+  emptyCircle: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   centerText: {
     fontSize: 14,
     color: colors.inkSoft,
@@ -48,5 +73,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
     lineHeight: 22,
   },
-  list: { paddingBottom: 24 },
+  list: { paddingBottom: space.xl },
 });

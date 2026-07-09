@@ -71,18 +71,45 @@ function normalizeAr(text) {
     .trim();
 }
 
+// هل الكلمة q تطابق كلمة واحدة w في اسم المنتج؟ نطابق «كلمات» لا سلاسل
+// فرعية: «سكر» يطابق «سكر» و«السكر» و«وسكر»، لكن ليس «سكريمرز» (حلوى).
+// نسمح بسابقة أل التعريف أو حرف جر واحد، وبلاحقة قصيرة (ة/ات/ية...).
+const AR_PREFIXES = ['وال', 'بال', 'فال', 'كال', 'لل', 'ال', 'و', 'ب', 'ف', 'ك', 'ل'];
+
+function wordMatches(w, nt) {
+  let s = w;
+  // إزالة سابقة (حرف جر و/أو أل التعريف): «بالحليب»→«حليب»، «والسكر»→«سكر»
+  for (const p of AR_PREFIXES) {
+    if (s.startsWith(p) && s.length - p.length >= 2) {
+      s = s.slice(p.length);
+      break;
+    }
+  }
+  if (s === nt) return true;
+  // لاحقة قصيرة: «سكرية»، «حليبات»
+  if (s.startsWith(nt) && s.length - nt.length <= 2) return true;
+  // سابقة حرف واحد باقٍ: «ارز»↔«رز» (ألف)
+  if (s.endsWith(nt) && s.length - nt.length === 1) return true;
+  return false;
+}
+
 // فلتر الدقة: بعض المتاجر (خاصة التميمي) تستخدم بحثًا دلاليًا فضفاضًا يرجع
 // منتجات «مرتبطة» لا مطابِقة (بحث «سكر» يرجع طحينًا ودقيقًا). نُبقي فقط
-// المنتجات التي يحتوي اسمها فعلًا كلمة البحث (أو مرادفها)، ونستبعد صيغ
-// النفي مثل «بدون سكر» / «خالٍ من السكر» التي تذكر الكلمة لكنها ليست المنتج.
+// المنتجات التي يحتوي اسمها فعلًا كلمة البحث (أو مرادفها) ككلمة كاملة،
+// ونستبعد صيغ النفي («بدون سكر»، «خالٍ من السكر»، «زيرو سكر»...).
 function isRelevant(product, terms) {
-  const name = normalizeAr(`${product.name_ar || ''} ${product.name || ''}`);
+  const full = normalizeAr(`${product.name_ar || ''} ${product.name || ''}`);
+  const words = full.split(/\s+/).filter(Boolean);
   for (const t of terms) {
     const nt = normalizeAr(t);
-    if (!nt || !name.includes(nt)) continue;
-    // استبعاد النفي: «بدون سكر»، «خالي من السكر»، «قليل السكر»...
-    const negated = new RegExp(`(بدون|خالي\\s*من|خالٍ\\s*من|قليل|منزوع|بلا)\\s*(ال)?${nt}`);
-    if (negated.test(name)) continue;
+    if (!nt) continue;
+    const idx = words.findIndex((w) => wordMatches(w, nt));
+    if (idx === -1) continue;
+    // استبعاد النفي: الكلمة السابقة نفي («بدون/خالي/زيرو/دايت/قليل سكر»)
+    const prev = words[idx - 1] || '';
+    const prev2 = words[idx - 2] || '';
+    if (/^(بدون|بلا|خالي|خال|منزوع|قليل|زيرو|دايت|لايت)$/.test(prev)) continue;
+    if (/^(خالي|خال)$/.test(prev2) && prev === 'من') continue;
     return true;
   }
   return false;

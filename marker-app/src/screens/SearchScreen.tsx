@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -23,7 +24,7 @@ import Chip from '../components/Chip';
 import PopularPills from '../components/PopularPills';
 import ProductCard from '../components/ProductCard';
 import { Lang, POPULAR_QUERIES, t } from '../i18n';
-import { chainInfo, colors, fonts } from '../theme';
+import { chainInfo, colors, fonts, radius, shadow, space } from '../theme';
 
 type SortMode = 'cheap' | 'expensive' | 'discount';
 
@@ -77,14 +78,11 @@ export default function SearchScreen({ lang }: { lang: Lang }) {
     (id: string) => {
       setCityId(id);
       cityRef.current = id;
-      // أعد البحث الحالي بأسعار المدينة الجديدة
       if (lastQuery.current) runSearch(lastQuery.current);
     },
     [runSearch],
   );
 
-  // شرائح المتاجر تُبنى ديناميكيًا من النتائج الفعلية —
-  // أي متجر تضيفه من لوحة التحكم يظهر هنا تلقائيًا بلونه واسمه
   const chainChips = useMemo(() => {
     const chips: { key: string; ar: string; en: string; color: string; count: number }[] = [];
     for (const p of products ?? []) {
@@ -95,7 +93,7 @@ export default function SearchScreen({ lang }: { lang: Lang }) {
         continue;
       }
       const info = chainInfo(p.chain);
-      const known = info.ar !== p.chain; // معرّف في الثيم؟
+      const known = info.ar !== p.chain;
       chips.push({
         key: k,
         ar: known ? info.ar : p.chain_ar ?? p.chain,
@@ -118,6 +116,15 @@ export default function SearchScreen({ lang }: { lang: Lang }) {
     return list;
   }, [products, selectedChains, sort]);
 
+  // مفتاح البطاقة ذات أقل سعر بين المتوفر — تبرز بشارة «الأرخص»
+  const cheapestKey = useMemo(() => {
+    const pool = visible.filter((p) => p.in_stock);
+    if (!pool.length) return null;
+    let best = pool[0];
+    for (const p of pool) if (p.price < best.price) best = p;
+    return productKey(best);
+  }, [visible]);
+
   const toggleChain = (key: string) => {
     setSelectedChains((prev) => {
       const next = new Set(prev);
@@ -127,39 +134,21 @@ export default function SearchScreen({ lang }: { lang: Lang }) {
     });
   };
 
-  const sortModes: { key: SortMode; label: string }[] = [
-    { key: 'cheap', label: t('cheapest', lang) },
-    { key: 'expensive', label: t('priciest', lang) },
-    { key: 'discount', label: t('biggestDiscount', lang) },
+  const sortModes: { key: SortMode; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
+    { key: 'cheap', icon: 'trending-down', label: t('cheapest', lang) },
+    { key: 'expensive', icon: 'trending-up', label: t('priciest', lang) },
+    { key: 'discount', icon: 'pricetag', label: t('biggestDiscount', lang) },
   ];
-
-  const cityRow = cities.length > 0 && (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.chipScroll}
-      contentContainerStyle={styles.chipRow}
-    >
-      <Text style={styles.cityLabel}>{t('yourCity', lang)}</Text>
-      {cities.map((c) => (
-        <Chip
-          key={c.id}
-          label={rtl ? c.ar : c.en}
-          active={cityId === c.id}
-          color={colors.leaf}
-          onPress={() => pickCity(c.id)}
-        />
-      ))}
-    </ScrollView>
-  );
 
   return (
     <View style={styles.container}>
-      <View style={styles.searchBox}>
+      {/* صندوق البحث */}
+      <View style={[styles.searchBox, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+        <Ionicons name="search" size={20} color={colors.inkFaint} style={styles.searchIcon} />
         <TextInput
-          style={[styles.input, rtl && { textAlign: 'right', writingDirection: 'rtl' }]}
+          style={[styles.input, rtl && styles.rtlInput]}
           placeholder={t('searchPlaceholder', lang)}
-          placeholderTextColor={colors.inkSoft}
+          placeholderTextColor={colors.inkFaint}
           value={query}
           onChangeText={setQuery}
           onSubmitEditing={() => runSearch(query)}
@@ -167,15 +156,40 @@ export default function SearchScreen({ lang }: { lang: Lang }) {
           autoCorrect={false}
         />
         <Pressable style={styles.searchButton} onPress={() => runSearch(query)}>
-          <Text style={styles.searchButtonText}>🔍</Text>
+          <Ionicons name="arrow-forward" size={18} color={colors.white} style={rtl && { transform: [{ scaleX: -1 }] }} />
         </Pressable>
       </View>
 
-      {cityRow}
+      {/* شريط المدينة */}
+      {cities.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.chipScroll}
+          contentContainerStyle={[styles.chipRow, rtl && { flexDirection: 'row-reverse' }]}
+        >
+          <View style={[styles.cityLabelWrap, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+            <Ionicons name="location-sharp" size={14} color={colors.primary} />
+            <Text style={styles.cityLabel}>{t('yourCity', lang)}</Text>
+          </View>
+          {cities.map((c) => (
+            <Chip
+              key={c.id}
+              label={rtl ? c.ar : c.en}
+              active={cityId === c.id}
+              color={colors.primary}
+              onPress={() => pickCity(c.id)}
+            />
+          ))}
+        </ScrollView>
+      )}
 
+      {/* حالة الخمول */}
       {products === null && !loading && !error && (
         <ScrollView contentContainerStyle={styles.idleWrap}>
-          <Text style={styles.idleEmoji}>🛒</Text>
+          <View style={styles.idleIconCircle}>
+            <Ionicons name="pricetags-outline" size={40} color={colors.primary} />
+          </View>
           <Text style={styles.idleText}>{t('searchIdle', lang)}</Text>
           <Text style={styles.popularTitle}>{t('popular', lang)}</Text>
           <View style={styles.popularChips}>
@@ -189,13 +203,14 @@ export default function SearchScreen({ lang }: { lang: Lang }) {
 
       {loading && (
         <View style={styles.centerWrap}>
-          <ActivityIndicator size="large" color={colors.tomato} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.centerText}>{t('loading', lang)}</Text>
         </View>
       )}
 
       {error && !loading && (
         <View style={styles.centerWrap}>
+          <Ionicons name="cloud-offline-outline" size={44} color={colors.inkFaint} />
           <Text style={styles.centerText}>{t('error', lang)}</Text>
           <Pressable style={styles.retryButton} onPress={() => runSearch(query)}>
             <Text style={styles.retryText}>{t('retry', lang)}</Text>
@@ -205,14 +220,25 @@ export default function SearchScreen({ lang }: { lang: Lang }) {
 
       {products !== null && !loading && !error && (
         <>
+          {/* عدّاد النتائج */}
+          <View style={[styles.resultBar, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+            <Text style={styles.resultCount}>
+              <Text style={styles.resultNum}>{visible.length}</Text> {t('results', lang)}
+            </Text>
+            <Text style={styles.resultStores}>
+              {chainChips.length} {t('stores', lang)}
+            </Text>
+          </View>
+
+          {/* شرائح المتاجر */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.chipScroll}
-            contentContainerStyle={styles.chipRow}
+            contentContainerStyle={[styles.chipRow, rtl && { flexDirection: 'row-reverse' }]}
           >
             <Chip
-              label={`${t('allStores', lang)} (${products.length})`}
+              label={`${t('allStores', lang)} · ${products.length}`}
               active={selectedChains.size === 0}
               onPress={() => setSelectedChains(new Set())}
             />
@@ -228,31 +254,44 @@ export default function SearchScreen({ lang }: { lang: Lang }) {
             ))}
           </ScrollView>
 
+          {/* الترتيب */}
           <View style={[styles.sortRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-            {sortModes.map((m) => (
-              <Pressable
-                key={m.key}
-                onPress={() => setSort(m.key)}
-                style={[styles.sortButton, sort === m.key && styles.sortButtonActive]}
-              >
-                <Text style={[styles.sortText, sort === m.key && styles.sortTextActive]}>
-                  {m.label}
-                </Text>
-              </Pressable>
-            ))}
+            {sortModes.map((m) => {
+              const on = sort === m.key;
+              return (
+                <Pressable
+                  key={m.key}
+                  onPress={() => setSort(m.key)}
+                  style={[
+                    styles.sortButton,
+                    { flexDirection: rtl ? 'row-reverse' : 'row' },
+                    on && styles.sortButtonActive,
+                  ]}
+                >
+                  <Ionicons name={m.icon} size={13} color={on ? colors.white : colors.inkSoft} />
+                  <Text style={[styles.sortText, on && styles.sortTextActive]}>{m.label}</Text>
+                </Pressable>
+              );
+            })}
           </View>
 
           <FlatList
             style={styles.listFlex}
             data={visible}
             keyExtractor={productKey}
-            renderItem={({ item }) => <ProductCard product={item} lang={lang} />}
+            renderItem={({ item }) => (
+              <ProductCard
+                product={item}
+                lang={lang}
+                cheapest={productKey(item) === cheapestKey}
+              />
+            )}
             contentContainerStyle={styles.list}
             initialNumToRender={10}
             windowSize={7}
             ListEmptyComponent={
               <View style={styles.emptyBox}>
-                <Text style={styles.emptyEmoji}>🫥</Text>
+                <Ionicons name="search-outline" size={40} color={colors.inkFaint} />
                 <Text style={styles.emptyTitle}>{t('noResults', lang)}</Text>
                 <Text style={styles.centerText}>{t('noResultsHint', lang)}</Text>
               </View>
@@ -270,89 +309,100 @@ export default function SearchScreen({ lang }: { lang: Lang }) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   searchBox: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
-    marginBottom: 10,
-    backgroundColor: colors.white,
-    borderRadius: 14,
+    marginHorizontal: space.lg,
+    marginBottom: space.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
     borderWidth: 1.5,
     borderColor: colors.line,
     alignItems: 'center',
-    paddingStart: 6,
+    paddingHorizontal: 6,
+    ...shadow.card,
   },
+  searchIcon: { marginHorizontal: 8 },
   input: {
     flex: 1,
     fontSize: 15,
     fontFamily: fonts.medium,
     color: colors.ink,
-    paddingHorizontal: 10,
     paddingVertical: 12,
   },
+  rtlInput: { textAlign: 'right', writingDirection: 'rtl' },
   searchButton: {
-    backgroundColor: colors.tomato,
-    borderRadius: 10,
-    margin: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
+    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: 3,
   },
-  searchButtonText: { fontSize: 16 },
-  cityLabel: {
-    fontSize: 13,
-    color: colors.inkSoft,
-    fontFamily: fonts.semibold,
-    alignSelf: 'center',
+  cityLabelWrap: { alignItems: 'center', gap: 4 },
+  cityLabel: { fontSize: 13, color: colors.inkSoft, fontFamily: fonts.semibold },
+  idleWrap: { alignItems: 'center', paddingTop: space.xl, paddingHorizontal: space.xl, paddingBottom: space.xxl },
+  idleIconCircle: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: space.lg,
   },
-  idleWrap: { alignItems: 'center', paddingTop: 24, paddingHorizontal: 24, paddingBottom: 32 },
-  idleEmoji: { fontSize: 52, marginBottom: 12 },
   idleText: {
     fontSize: 14,
     color: colors.inkSoft,
     fontFamily: fonts.medium,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: space.xl,
     lineHeight: 22,
   },
-  popularTitle: { fontSize: 13, color: colors.ink, fontFamily: fonts.semibold, marginBottom: 12 },
-  popularChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    justifyContent: 'center',
-  },
-  centerWrap: { alignItems: 'center', paddingTop: 48, gap: 14 },
+  popularTitle: { fontSize: 13, color: colors.ink, fontFamily: fonts.semibold, marginBottom: space.md },
+  popularChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
+  centerWrap: { alignItems: 'center', paddingTop: 48, gap: space.md },
   centerText: { fontSize: 14, color: colors.inkSoft, fontFamily: fonts.medium, textAlign: 'center' },
   retryButton: {
-    backgroundColor: colors.tomato,
-    borderRadius: 99,
-    paddingHorizontal: 22,
-    paddingVertical: 9,
+    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
   },
   retryText: { color: colors.white, fontFamily: fonts.semibold, fontSize: 14 },
-  chipScroll: { flexGrow: 0, flexShrink: 0, height: 44, marginBottom: 6 },
-  chipRow: { gap: 8, paddingHorizontal: 16, alignItems: 'center' },
-  sortRow: { gap: 6, paddingHorizontal: 16, marginBottom: 10 },
-  sortButton: {
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    backgroundColor: colors.paperDeep,
+  resultBar: {
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: space.lg,
+    marginBottom: space.sm,
   },
-  sortButtonActive: { backgroundColor: colors.ink },
-  sortText: { fontSize: 12, color: colors.inkSoft, fontFamily: fonts.medium },
-  sortTextActive: { color: colors.white },
-  list: { paddingBottom: 24 },
+  resultCount: { fontSize: 13, color: colors.inkSoft, fontFamily: fonts.medium },
+  resultNum: { color: colors.primaryDeep, fontFamily: fonts.bold, fontSize: 15 },
+  resultStores: { fontSize: 12, color: colors.inkFaint, fontFamily: fonts.medium },
+  chipScroll: { flexGrow: 0, flexShrink: 0, height: 44, marginBottom: space.sm },
+  chipRow: { gap: 8, paddingHorizontal: space.lg, alignItems: 'center' },
+  sortRow: { gap: 8, paddingHorizontal: space.lg, marginBottom: space.md },
+  sortButton: {
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: colors.surfaceAlt,
+  },
+  sortButtonActive: { backgroundColor: colors.primary },
+  sortText: { fontSize: 12.5, color: colors.inkSoft, fontFamily: fonts.medium },
+  sortTextActive: { color: colors.white, fontFamily: fonts.semibold },
+  list: { paddingBottom: space.xl },
   listFlex: { flex: 1 },
   emptyBox: {
     alignItems: 'center',
-    gap: 8,
-    marginTop: 32,
-    marginHorizontal: 24,
-    backgroundColor: colors.white,
+    gap: space.sm,
+    marginTop: space.xxl,
+    marginHorizontal: space.xl,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: radius.lg,
+    padding: space.xl,
   },
-  emptyEmoji: { fontSize: 40 },
   emptyTitle: { fontSize: 15, fontFamily: fonts.bold, color: colors.ink, textAlign: 'center' },
 });
