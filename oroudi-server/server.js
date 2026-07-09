@@ -57,6 +57,37 @@ const SYNONYMS = {
   'مياه': 'ماء',
 };
 
+// تطبيع عربي: إزالة التشكيل وتوحيد الحروف المتشابهة، حتى تتطابق «سكّر»
+// و«سكر»، و«أرز» و«ارز»، ونتفادى اختلافات الكتابة بين المتاجر.
+function normalizeAr(text) {
+  return String(text || '')
+    .replace(/[ً-ْٰ]/g, '') // التشكيل
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/ؤ/g, 'و')
+    .replace(/ئ/g, 'ي')
+    .replace(/ـ/g, '') // التطويل
+    .toLowerCase()
+    .trim();
+}
+
+// فلتر الدقة: بعض المتاجر (خاصة التميمي) تستخدم بحثًا دلاليًا فضفاضًا يرجع
+// منتجات «مرتبطة» لا مطابِقة (بحث «سكر» يرجع طحينًا ودقيقًا). نُبقي فقط
+// المنتجات التي يحتوي اسمها فعلًا كلمة البحث (أو مرادفها)، ونستبعد صيغ
+// النفي مثل «بدون سكر» / «خالٍ من السكر» التي تذكر الكلمة لكنها ليست المنتج.
+function isRelevant(product, terms) {
+  const name = normalizeAr(`${product.name_ar || ''} ${product.name || ''}`);
+  for (const t of terms) {
+    const nt = normalizeAr(t);
+    if (!nt || !name.includes(nt)) continue;
+    // استبعاد النفي: «بدون سكر»، «خالي من السكر»، «قليل السكر»...
+    const negated = new RegExp(`(بدون|خالي\\s*من|خالٍ\\s*من|قليل|منزوع|بلا)\\s*(ال)?${nt}`);
+    if (negated.test(name)) continue;
+    return true;
+  }
+  return false;
+}
+
 app.get('/api/search', async (req, res) => {
   const q = String(req.query.q || '').trim().toLowerCase();
   const lang = req.query.lang === 'en' ? 'en' : 'ar';
@@ -115,6 +146,11 @@ app.get('/api/search', async (req, res) => {
     }
     results.sort((a, b) => a.price - b.price);
   }
+
+  // فلتر الدقة — يُبقي فقط ما يطابق كلمة البحث فعلًا (أو مرادفها إن استُخدم)
+  const terms = [q];
+  if (SYNONYMS[q]) terms.push(SYNONYMS[q]);
+  results = results.filter((p) => isRelevant(p, terms));
 
   db.prepare('INSERT INTO search_logs (query, lang, city, results, ms) VALUES (?,?,?,?,?)').run(
     q, lang, city, results.length, Date.now() - started,
