@@ -38,6 +38,20 @@
 //   "url_prefix": "https://store.com"
 // }
 // كل حقل يقبل أيضًا "regex" لالتقاط جزء من النص، و"attr" لقراءة خاصية بدل النص.
+//
+// ═══ النمط الثالث: browser (مواقع خلف حماية بوت متقدمة مثل Akamai/Cloudflare) ═══
+// يستخدم Google Chrome الحقيقي المثبت على الجهاز (وليس Chromium المدمج) —
+// بصمته أصعب على أدوات الحماية اكتشافها. أبطأ من الأنماط الأخرى، فاستخدمه
+// فقط للمواقع التي تفشل معها JSON وHTML العاديين.
+// {
+//   "type": "browser",
+//   "search_url": "https://store.com/search?q={q}",
+//   "extract": "next_data",                 // أو "html" (افتراضي)
+//   // extract=next_data: يقرأ JSON المدمج في <script id="__NEXT_DATA__">
+//   "results_path": "props.pageProps.productSearchResult.items",
+//   "fields": { "id": "id", "name": "name", "price": "price", ... },
+//   // extract=html: نفس حقول نمط HTML أعلاه (item_selector + fields.sel/attr)
+// }
 
 let cheerio = null;
 
@@ -89,8 +103,65 @@ function absolutize(value, prefix) {
   return (prefix || '') + s;
 }
 
+// متصفح Chrome حقيقي واحد يُعاد استخدامه لكل طلبات نمط "browser" — إطلاق
+// متصفح جديد كل مرة يبطئ ويستهلك ذاكرة أكبر بكثير على الاستضافة المجانية.
+let sharedBrowser = null;
+
+async function getSharedBrowser() {
+  if (sharedBrowser) return sharedBrowser;
+  const { chromium } = require('playwright');
+  sharedBrowser = await chromium.launch({
+    channel: 'chrome',
+    args: ['--disable-dev-shm-usage'],
+  });
+  return sharedBrowser;
+}
+
+async function scrapeViaBrowser(cfg, q, lang, timeoutMs) {
+  const browser = await getSharedBrowser();
+  const context = await browser.newContext({
+    userAgent:
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36',
+  });
+  const page = await context.newPage();
+  try {
+    const url = substitute(cfg.search_url, q, lang);
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
+    await page.waitForTimeout(cfg.wait_ms || 4000);
+
+    if (cfg.extract === 'next_data') {
+      const raw = await page.evaluate(() => {
+        const s = document.getElementById('__NEXT_DATA__');
+        return s ? s.textContent : null;
+      });
+      if (!raw) throw new Error('لم يُعثر على __NEXT_DATA__ في الصفحة');
+      const json = JSON.parse(raw);
+      let arr = getPath(json, cfg.results_path);
+      if (arr == null) arr = [];
+      if (!Array.isArray(arr)) throw new Error(`results_path "${cfg.results_path}" لم يُرجع مصفوفة`);
+      return { rows: arr, get: getPath };
+    }
+
+    const html = await page.content();
+    if (!cheerio) cheerio = require('cheerio');
+    const $ = cheerio.load(html);
+    const selector = cfg.item_selector;
+    if (!selector) throw new Error('item_selector مطلوب في نمط browser (extract=html)');
+    const rows = $(selector).toArray().map((el) => $(el));
+    return { rows, get: extractHtml };
+  } finally {
+    await context.close();
+  }
+}
+
 async function scrapeStore(store, q, lang, timeoutMs = 15000) {
   const cfg = typeof store.config === 'string' ? JSON.parse(store.config) : store.config;
+
+  if (cfg.type === 'browser') {
+    const { rows, get } = await scrapeViaBrowser(cfg, q, lang, Math.max(timeoutMs, 25000));
+    return buildProducts(rows, get, store, cfg);
+  }
+
   const url = substitute(cfg.search_url, q, lang);
   const headers = { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)' };
   for (const [k, v] of Object.entries(cfg.headers || {})) {
@@ -138,6 +209,10 @@ async function scrapeStore(store, q, lang, timeoutMs = 15000) {
     clearTimeout(timer);
   }
 
+  return buildProducts(rows, get, store, cfg);
+}
+
+function buildProducts(rows, get, store, cfg) {
   const f = cfg.fields || {};
   const divisor = Number(cfg.price_divisor) || 1;
   const products = [];

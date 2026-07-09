@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free
     rootDir: oroudi-server
-    buildCommand: npm install
+    buildCommand: npm install && npx playwright install --with-deps chrome
     startCommand: node server.js
     envVars:
       - key: ADMIN_TOKEN

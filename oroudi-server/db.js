@@ -207,6 +207,65 @@ if (count === 0) {
       2,
     ),
   );
+
+  // ٥) هنقرستيشن ماركت — خلف Cloudflare، لكن Chrome حقيقي (نمط browser) يجتازه.
+  //    البيانات JSON نظيفة مدمجة في __NEXT_DATA__ داخل الصفحة نفسها.
+  insert.run(
+    'hungerstation',
+    'هنقرستيشن',
+    'Hungerstation',
+    '#f47b20',
+    1,
+    JSON.stringify(
+      {
+        type: 'browser',
+        search_url:
+          'https://hungerstation.com/sa-ar/qc/14013/hmarket/branch/a67ba893-443c-41b6-ba70-fc35a9b2f9f3~54608?query={q}',
+        extract: 'next_data',
+        results_path: 'props.pageProps.productSearchResult.items',
+        fields: {
+          id: 'id',
+          name: 'name',
+          image: 'images.0.url',
+          price: 'price',
+          original_price: 'originalPrice',
+          url: 'sku',
+        },
+        url_prefix:
+          'https://hungerstation.com/sa-ar/qc/14013/hmarket/branch/a67ba893-443c-41b6-ba70-fc35a9b2f9f3~54608/product/x/',
+      },
+      null,
+      2,
+    ),
+  );
+
+  // ٦) كارفور — خلف Akamai، لكن Chrome حقيقي يجتازه أيضًا. البيانات مُصيَّرة
+  //    داخل HTML الصفحة (بلا JSON مدمج)، فنقرأها بمحددات CSS.
+  insert.run(
+    'carrefour',
+    'كارفور',
+    'Carrefour',
+    '#004e9f',
+    1,
+    JSON.stringify(
+      {
+        type: 'browser',
+        search_url: 'https://www.carrefourksa.com/mafsau/ar/search?keyword={q}',
+        extract: 'html',
+        item_selector: 'div[style*="grid-column"]',
+        fields: {
+          name: { sel: '.line-clamp-2' },
+          price: { sel: '.flex.flex-wrap.gap-2xs > div:first-child' },
+          original_price: { sel: '.line-through' },
+          image: { sel: 'img', attr: 'src' },
+          url: { sel: 'a[href*="/p/"]', attr: 'href' },
+        },
+        url_prefix: 'https://www.carrefourksa.com',
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 module.exports = db;
