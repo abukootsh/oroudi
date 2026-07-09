@@ -13,7 +13,7 @@ export default function FavoritesScreen({ lang }: { lang: Lang }) {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.head, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+      <View style={styles.head}>
         <View style={styles.headIcon}>
           <Ionicons name="heart" size={18} color={colors.danger} />
         </View>
@@ -42,6 +42,7 @@ export default function FavoritesScreen({ lang }: { lang: Lang }) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   head: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
     paddingHorizontal: space.lg,

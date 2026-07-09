@@ -11,9 +11,7 @@ import {
   View,
 } from 'react-native';
 import {
-  City,
   discountPercent,
-  fetchCities,
   fetchPopular,
   PopularItem,
   Product,
@@ -36,20 +34,10 @@ export default function SearchScreen({ lang }: { lang: Lang }) {
   const [products, setProducts] = useState<Product[] | null>(null);
   const [selectedChains, setSelectedChains] = useState<Set<string>>(new Set());
   const [sort, setSort] = useState<SortMode>('cheap');
-  const [cities, setCities] = useState<City[]>([]);
-  const [cityId, setCityId] = useState('riyadh');
   const [popular, setPopular] = useState<PopularItem[]>([]);
   const lastQuery = useRef('');
-  const cityRef = useRef('riyadh');
 
   useEffect(() => {
-    fetchCities()
-      .then(({ cities, selected }) => {
-        setCities(cities);
-        setCityId(selected);
-        cityRef.current = selected;
-      })
-      .catch(() => {});
     fetchPopular().then(setPopular).catch(() => {});
   }, []);
 
@@ -63,7 +51,7 @@ export default function SearchScreen({ lang }: { lang: Lang }) {
       setError(false);
       setSelectedChains(new Set());
       try {
-        setProducts(await searchProducts(trimmed, lang, cityRef.current));
+        setProducts(await searchProducts(trimmed, lang, "riyadh"));
       } catch {
         setError(true);
         setProducts(null);
@@ -72,15 +60,6 @@ export default function SearchScreen({ lang }: { lang: Lang }) {
       }
     },
     [lang],
-  );
-
-  const pickCity = useCallback(
-    (id: string) => {
-      setCityId(id);
-      cityRef.current = id;
-      if (lastQuery.current) runSearch(lastQuery.current);
-    },
-    [runSearch],
   );
 
   const chainChips = useMemo(() => {
@@ -143,10 +122,10 @@ export default function SearchScreen({ lang }: { lang: Lang }) {
   return (
     <View style={styles.container}>
       {/* صندوق البحث */}
-      <View style={[styles.searchBox, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+      <View style={styles.searchBox}>
         <Ionicons name="search" size={20} color={colors.inkFaint} style={styles.searchIcon} />
         <TextInput
-          style={[styles.input, rtl && styles.rtlInput]}
+          style={styles.input}
           placeholder={t('searchPlaceholder', lang)}
           placeholderTextColor={colors.inkFaint}
           value={query}
@@ -156,33 +135,9 @@ export default function SearchScreen({ lang }: { lang: Lang }) {
           autoCorrect={false}
         />
         <Pressable style={styles.searchButton} onPress={() => runSearch(query)}>
-          <Ionicons name="arrow-forward" size={18} color={colors.white} style={rtl && { transform: [{ scaleX: -1 }] }} />
+          <Ionicons name="search" size={18} color={colors.white} />
         </Pressable>
       </View>
-
-      {/* شريط المدينة */}
-      {cities.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.chipScroll}
-          contentContainerStyle={[styles.chipRow, rtl && { flexDirection: 'row-reverse' }]}
-        >
-          <View style={[styles.cityLabelWrap, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-            <Ionicons name="location-sharp" size={14} color={colors.primary} />
-            <Text style={styles.cityLabel}>{t('yourCity', lang)}</Text>
-          </View>
-          {cities.map((c) => (
-            <Chip
-              key={c.id}
-              label={rtl ? c.ar : c.en}
-              active={cityId === c.id}
-              color={colors.primary}
-              onPress={() => pickCity(c.id)}
-            />
-          ))}
-        </ScrollView>
-      )}
 
       {/* حالة الخمول */}
       {products === null && !loading && !error && (
@@ -221,7 +176,7 @@ export default function SearchScreen({ lang }: { lang: Lang }) {
       {products !== null && !loading && !error && (
         <>
           {/* عدّاد النتائج */}
-          <View style={[styles.resultBar, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.resultBar, { flexDirection: 'row' }]}>
             <Text style={styles.resultCount}>
               <Text style={styles.resultNum}>{visible.length}</Text> {t('results', lang)}
             </Text>
@@ -235,7 +190,7 @@ export default function SearchScreen({ lang }: { lang: Lang }) {
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.chipScroll}
-            contentContainerStyle={[styles.chipRow, rtl && { flexDirection: 'row-reverse' }]}
+            contentContainerStyle={styles.chipRow}
           >
             <Chip
               label={`${t('allStores', lang)} · ${products.length}`}
@@ -255,7 +210,7 @@ export default function SearchScreen({ lang }: { lang: Lang }) {
           </ScrollView>
 
           {/* الترتيب */}
-          <View style={[styles.sortRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.sortRow, { flexDirection: 'row' }]}>
             {sortModes.map((m) => {
               const on = sort === m.key;
               return (
@@ -264,7 +219,7 @@ export default function SearchScreen({ lang }: { lang: Lang }) {
                   onPress={() => setSort(m.key)}
                   style={[
                     styles.sortButton,
-                    { flexDirection: rtl ? 'row-reverse' : 'row' },
+                    { flexDirection: 'row' },
                     on && styles.sortButtonActive,
                   ]}
                 >
@@ -309,6 +264,7 @@ export default function SearchScreen({ lang }: { lang: Lang }) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   searchBox: {
+    flexDirection: 'row',
     marginHorizontal: space.lg,
     marginBottom: space.md,
     backgroundColor: colors.surface,
@@ -327,7 +283,6 @@ const styles = StyleSheet.create({
     color: colors.ink,
     paddingVertical: 12,
   },
-  rtlInput: { textAlign: 'right', writingDirection: 'rtl' },
   searchButton: {
     backgroundColor: colors.primary,
     borderRadius: radius.pill,
@@ -337,7 +292,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     margin: 3,
   },
-  cityLabelWrap: { alignItems: 'center', gap: 4 },
+  cityLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   cityLabel: { fontSize: 13, color: colors.inkSoft, fontFamily: fonts.semibold },
   idleWrap: { alignItems: 'center', paddingTop: space.xl, paddingHorizontal: space.xl, paddingBottom: space.xxl },
   idleIconCircle: {
@@ -369,6 +324,7 @@ const styles = StyleSheet.create({
   },
   retryText: { color: colors.white, fontFamily: fonts.semibold, fontSize: 14 },
   resultBar: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: space.lg,
@@ -378,9 +334,10 @@ const styles = StyleSheet.create({
   resultNum: { color: colors.primaryDeep, fontFamily: fonts.bold, fontSize: 15 },
   resultStores: { fontSize: 12, color: colors.inkFaint, fontFamily: fonts.medium },
   chipScroll: { flexGrow: 0, flexShrink: 0, height: 44, marginBottom: space.sm },
-  chipRow: { gap: 8, paddingHorizontal: space.lg, alignItems: 'center' },
-  sortRow: { gap: 8, paddingHorizontal: space.lg, marginBottom: space.md },
+  chipRow: { flexDirection: 'row', gap: 8, paddingHorizontal: space.lg, alignItems: 'center' },
+  sortRow: { flexDirection: 'row', gap: 8, paddingHorizontal: space.lg, marginBottom: space.md },
   sortButton: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     borderRadius: radius.pill,

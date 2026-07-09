@@ -59,14 +59,13 @@ export default function App() {
     registerPushToken();
   }, []);
 
-  // اتجاه صفحة الويب حسب اللغة (RTL للعربية) — يضبط شريط التمرير ومحاذاة
-  // العناصر الأصلية بشكل صحيح في المتصفح.
+  // اتجاه صفحة الويب (RTL دائمًا — التطبيق عربي أساسًا) لضبط شريط التمرير.
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      document.documentElement.dir = rtl ? 'rtl' : 'ltr';
+      document.documentElement.dir = 'rtl';
       document.documentElement.lang = lang;
     }
-  }, [rtl, lang]);
+  }, [lang]);
 
   if (!fontsLoaded) {
     return (
@@ -88,51 +87,51 @@ export default function App() {
         <SafeAreaView style={[styles.root, framed && styles.rootFramed]}>
           <StatusBar style="dark" />
 
-          {/* الهيدر */}
-          <View style={[styles.header, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-          <View style={[styles.brand, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
-            <View style={styles.logoBadge}>
-              <Ionicons name="basket" size={20} color={colors.white} />
-            </View>
-            <View style={{ alignItems: rtl ? 'flex-end' : 'flex-start' }}>
-              <Text style={styles.brandTitle}>{t('appName', lang)}</Text>
-              <Text style={styles.brandTagline}>{t('brandSub', lang)}</Text>
-            </View>
+          {/* الهيدر — الضغط على الشعار يعيد للرئيسية (بحث) */}
+          <View style={styles.header}>
+            <Pressable style={styles.brand} onPress={() => setTab('search')}>
+              <View style={styles.logoBadge}>
+                <Ionicons name="basket" size={20} color={colors.white} />
+              </View>
+              <View>
+                <Text style={styles.brandTitle}>{t('appName', lang)}</Text>
+                <Text style={styles.brandTagline}>{t('brandSub', lang)}</Text>
+              </View>
+            </Pressable>
+            <Pressable
+              style={styles.langButton}
+              onPress={() => setLang(lang === 'ar' ? 'en' : 'ar')}
+            >
+              <Ionicons name="language" size={14} color={colors.primaryDeep} />
+              <Text style={styles.langText}>{lang === 'ar' ? 'EN' : 'ع'}</Text>
+            </Pressable>
           </View>
-          <Pressable
-            style={styles.langButton}
-            onPress={() => setLang(lang === 'ar' ? 'en' : 'ar')}
-          >
-            <Ionicons name="language" size={14} color={colors.primaryDeep} />
-            <Text style={styles.langText}>{lang === 'ar' ? 'EN' : 'ع'}</Text>
-          </Pressable>
-        </View>
 
-        <View style={styles.content}>
-          {tab === 'search' && <SearchScreen key={lang} lang={lang} />}
-          {tab === 'deals' && <DealsScreen lang={lang} />}
-          {tab === 'favorites' && <FavoritesScreen lang={lang} />}
-        </View>
+          <View style={styles.content}>
+            {tab === 'search' && <SearchScreen key={lang} lang={lang} />}
+            {tab === 'deals' && <DealsScreen lang={lang} />}
+            {tab === 'favorites' && <FavoritesScreen lang={lang} />}
+          </View>
 
-        {/* شريط التبويبات */}
-        <View style={styles.tabBar}>
-          {TABS.map((item) => {
-            const on = tab === item.key;
-            return (
-              <Pressable key={item.key} style={styles.tabItem} onPress={() => setTab(item.key)}>
-                <View style={[styles.tabIconWrap, on && styles.tabIconWrapActive]}>
-                  <Ionicons
-                    name={on ? item.icon : item.iconOutline}
-                    size={20}
-                    color={on ? colors.white : colors.inkFaint}
-                  />
-                </View>
-                <Text style={[styles.tabLabel, on && styles.tabLabelActive]}>
-                  {labels[item.key]}
-                </Text>
-              </Pressable>
-            );
-          })}
+          {/* شريط التبويبات */}
+          <View style={styles.tabBar}>
+            {TABS.map((item) => {
+              const on = tab === item.key;
+              return (
+                <Pressable key={item.key} style={styles.tabItem} onPress={() => setTab(item.key)}>
+                  <View style={[styles.tabIconWrap, on && styles.tabIconWrapActive]}>
+                    <Ionicons
+                      name={on ? item.icon : item.iconOutline}
+                      size={20}
+                      color={on ? colors.white : colors.inkFaint}
+                    />
+                  </View>
+                  <Text style={[styles.tabLabel, on && styles.tabLabelActive]}>
+                    {labels[item.key]}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </SafeAreaView>
       </View>
@@ -155,13 +154,14 @@ const styles = StyleSheet.create({
   },
   loading: { alignItems: 'center', justifyContent: 'center', flex: 1 },
   header: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: space.lg,
     paddingTop: space.sm,
     paddingBottom: space.md,
   },
-  brand: { alignItems: 'center', gap: space.md },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   logoBadge: {
     width: 40,
     height: 40,

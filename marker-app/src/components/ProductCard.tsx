@@ -28,7 +28,6 @@ function ProductCardInner({ product, lang, cheapest }: Props) {
   const discount = discountPercent(product);
   const name = rtl ? product.name_ar || product.name : product.name;
   const fav = isFavorite(product);
-  const align = rtl ? 'flex-end' : 'flex-start';
 
   const open = product.link
     ? () => {
@@ -43,7 +42,7 @@ function ProductCardInner({ product, lang, cheapest }: Props) {
   return (
     <View style={[styles.wrap, cheapest && styles.wrapCheapest]}>
       {cheapest && (
-        <View style={[styles.cheapBar, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+        <View style={[styles.cheapBar, { flexDirection: 'row' }]}>
           <Ionicons name="trending-down" size={13} color={colors.white} />
           <Text style={styles.cheapBarText}>{t('cheapestBadge', lang)}</Text>
         </View>
@@ -53,7 +52,7 @@ function ProductCardInner({ product, lang, cheapest }: Props) {
         disabled={!open}
         style={({ pressed }) => [
           styles.card,
-          { flexDirection: rtl ? 'row-reverse' : 'row' },
+          { flexDirection: 'row' },
           pressed && open ? styles.cardPressed : null,
         ]}
       >
@@ -65,8 +64,8 @@ function ProductCardInner({ product, lang, cheapest }: Props) {
           )}
         </View>
 
-        <View style={[styles.info, { alignItems: align }]}>
-          <View style={[styles.badgeRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+        <View style={styles.info}>
+          <View style={styles.badgeRow}>
             <View style={[styles.chainBadge, { backgroundColor: chainColor }]}>
               <Text style={[styles.chainText, chain.darkText && { color: colors.ink }]}>
                 {chainLabel}
@@ -85,15 +84,15 @@ function ProductCardInner({ product, lang, cheapest }: Props) {
           </View>
 
           {!!product.brand && (
-            <Text style={[styles.brand, rtl && styles.rtl]} numberOfLines={1}>
+            <Text style={styles.brand} numberOfLines={1}>
               {product.brand}
             </Text>
           )}
-          <Text style={[styles.name, rtl && styles.rtl]} numberOfLines={2}>
+          <Text style={styles.name} numberOfLines={2}>
             {name}
           </Text>
 
-          <View style={[styles.priceRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+          <View style={[styles.priceRow, { flexDirection: 'row' }]}>
             <Text style={[styles.price, cheapest && { color: colors.accent }]}>
               {product.price.toFixed(2)}
               <Text style={styles.currency}> {t('sar', lang)}</Text>
@@ -104,13 +103,9 @@ function ProductCardInner({ product, lang, cheapest }: Props) {
           </View>
 
           {!!open && (
-            <View style={[styles.openRow, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+            <View style={styles.openRow}>
               <Text style={styles.openLink}>{t('openInStore', lang)}</Text>
-              <Ionicons
-                name={rtl ? 'arrow-back' : 'arrow-forward'}
-                size={12}
-                color={colors.primary}
-              />
+              <Ionicons name="chevron-back" size={13} color={colors.primary} />
             </View>
           )}
         </View>
@@ -148,6 +143,7 @@ const styles = StyleSheet.create({
     ...shadow.raised,
   },
   cheapBar: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     backgroundColor: colors.accent,
@@ -158,6 +154,7 @@ const styles = StyleSheet.create({
   },
   cheapBarText: { color: colors.white, fontSize: 11.5, fontFamily: fonts.bold },
   card: {
+    flexDirection: 'row',
     padding: space.md,
     gap: space.md,
     alignItems: 'center',
@@ -173,8 +170,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   image: { width: 66, height: 66 },
-  info: { flex: 1, gap: 3 },
-  badgeRow: { gap: 6, alignItems: 'center', flexWrap: 'wrap' },
+  info: { flex: 1, gap: 3, alignItems: 'flex-start' },
+  badgeRow: { flexDirection: 'row', gap: 6, alignItems: 'center', flexWrap: 'wrap' },
   chainBadge: { borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 3 },
   chainText: { color: colors.white, fontSize: 11, fontFamily: fonts.semibold },
   discountBadge: {
@@ -193,8 +190,7 @@ const styles = StyleSheet.create({
   oosText: { color: colors.danger, fontSize: 10.5, fontFamily: fonts.medium },
   brand: { fontSize: 11, color: colors.inkFaint, fontFamily: fonts.medium },
   name: { fontSize: 14, color: colors.ink, fontFamily: fonts.semibold, lineHeight: 20 },
-  rtl: { textAlign: 'right', writingDirection: 'rtl' },
-  priceRow: { alignItems: 'baseline', gap: 8, marginTop: 2 },
+  priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 2 },
   price: { fontSize: 19, color: colors.primaryDeep, fontFamily: fonts.bold },
   currency: { fontSize: 12, color: colors.inkSoft, fontFamily: fonts.medium },
   originalPrice: {
@@ -203,7 +199,7 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
     fontFamily: fonts.regular,
   },
-  openRow: { alignItems: 'center', gap: 4, marginTop: 3 },
+  openRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
   openLink: { fontSize: 11.5, color: colors.primary, fontFamily: fonts.semibold },
   favButton: { alignSelf: 'flex-start', padding: 2 },
 });
