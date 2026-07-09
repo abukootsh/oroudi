@@ -285,12 +285,13 @@ CREATE TABLE IF NOT EXISTS settings (
         type: 'browser',
         search_url: 'https://www.noon.com/saudi-ar/search/?q={q}',
         extract: 'html',
-        scroll: true,
         item_selector: 'a[href*="/p/"]',
         fields: {
           name: { sel: '[class*="_title_"]' },
           price: { sel: '[class*="_sellingPrice_"]' },
-          image: { sel: 'img[src*="pnsku"]', attr: 'src' },
+          // أي صورة مسارها /p/ = صورة منتج حقيقية (نتجاوز placeholder والأيقونات
+          // ونتفادى مشكلة الكاروسيل الذي يحوي عدة صور بعضها لم يُحمّل بعد)
+          image: { sel: 'img[src*="nooncdn.com/p/"]', attr: 'src' },
           url: { attr: 'href' },
         },
         url_prefix: 'https://www.noon.com',
