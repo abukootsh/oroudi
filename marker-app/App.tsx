@@ -10,10 +10,12 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { warmUpServer } from './src/api';
@@ -47,6 +49,9 @@ export default function App() {
   const [lang, setLang] = useState<Lang>('ar');
   const [tab, setTab] = useState<Tab>('search');
   const rtl = lang === 'ar';
+  const { width } = useWindowDimensions();
+  // على الويب العريض: نؤطّر التطبيق في عمود موبايل موسّط بدل مدّه على الشاشة
+  const framed = Platform.OS === 'web' && width > 560;
 
   useEffect(() => {
     warmUpServer();
@@ -70,11 +75,12 @@ export default function App() {
 
   return (
     <FavoritesProvider>
-      <SafeAreaView style={styles.root}>
-        <StatusBar style="dark" />
+      <View style={styles.outer}>
+        <SafeAreaView style={[styles.root, framed && styles.rootFramed]}>
+          <StatusBar style="dark" />
 
-        {/* الهيدر */}
-        <View style={[styles.header, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
+          {/* الهيدر */}
+          <View style={[styles.header, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
           <View style={[styles.brand, { flexDirection: rtl ? 'row-reverse' : 'row' }]}>
             <View style={styles.logoBadge}>
               <Ionicons name="basket" size={20} color={colors.white} />
@@ -118,15 +124,27 @@ export default function App() {
               </Pressable>
             );
           })}
-        </View>
-      </SafeAreaView>
+          </View>
+        </SafeAreaView>
+      </View>
     </FavoritesProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
-  loading: { alignItems: 'center', justifyContent: 'center' },
+  outer: { flex: 1, backgroundColor: '#E6ECEA', alignItems: 'center' },
+  root: { flex: 1, width: '100%', backgroundColor: colors.bg },
+  // إطار الموبايل الموسّط على الويب العريض
+  rootFramed: {
+    maxWidth: 480,
+    marginVertical: 20,
+    borderRadius: 28,
+    overflow: 'hidden',
+    ...shadow.card,
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+  },
+  loading: { alignItems: 'center', justifyContent: 'center', flex: 1 },
   header: {
     alignItems: 'center',
     justifyContent: 'space-between',
