@@ -58,9 +58,12 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 `);
 
-// بذور الكلمات المتتبعة (سلع أساسية) — عدّلها من لوحة التحكم
-if (db.prepare('SELECT COUNT(*) n FROM tracked_queries').get().n === 0) {
-  const ins = db.prepare('INSERT INTO tracked_queries (query) VALUES (?)');
+// بذور الكلمات المتتبعة (سلع أساسية) — عدّلها من لوحة التحكم.
+// OR IGNORE بدل شرط "الجدول فارغ": استضافات مجانية مثل Render قد تمسح
+// القرص مع كل نشر جديد، فنضمن وجود الكلمات الأساسية دائمًا دون تكرار
+// أو حذف أي كلمات أضافها المستخدم بنفسه.
+{
+  const ins = db.prepare('INSERT OR IGNORE INTO tracked_queries (query) VALUES (?)');
   for (const q of [
     'حليب', 'أرز', 'دجاج', 'زيت', 'سكر', 'ماء', 'قهوة',
     'شاي', 'جبن', 'بيض', 'خبز', 'عصير', 'طماطم', 'مكرونة',
@@ -69,11 +72,14 @@ if (db.prepare('SELECT COUNT(*) n FROM tracked_queries').get().n === 0) {
   }
 }
 
-// ---- بذور: متجران نموذجيان ----
-const count = db.prepare('SELECT COUNT(*) n FROM stores').get().n;
-if (count === 0) {
+// ---- بذور المتاجر ----
+// OR IGNORE لنفس السبب أعلاه: تضمن وجود المتاجر الأساسية بعد كل إعادة
+// تشغيل حتى لو القرص انمسح، دون المساس بأي متجر أضافه المستخدم أو عدّله
+// (لن يُستبدل، فقط يُضاف الناقص). لتحديث إعدادات متجر أساسي، عدّله من
+// اللوحة مباشرة — البذور هنا شبكة أمان فقط.
+{
   const insert = db.prepare(
-    'INSERT INTO stores (key, name_ar, name_en, color, enabled, config) VALUES (?,?,?,?,?,?)',
+    'INSERT OR IGNORE INTO stores (key, name_ar, name_en, color, enabled, config) VALUES (?,?,?,?,?,?)',
   );
 
   // ١) التميمي — API عام حقيقي يعمل مباشرة (العربية عبر ترويسة Accept-Language)
