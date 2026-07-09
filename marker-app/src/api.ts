@@ -57,6 +57,13 @@ export function discountPercent(p: Product): number {
   return Math.round((1 - p.price / p.original_price) * 100);
 }
 
+// خوادم الاستضافة المجانية (مثل Render) تنام بعد فترة خمول وتحتاج حتى
+// دقيقة لتستيقظ. نرسل نبضة تنشيط عند فتح التطبيق حتى يكون الخادم صاحيًا
+// غالبًا وقت أول بحث فعلي من المستخدم.
+export function warmUpServer(): void {
+  fetch(`${SERVER}/api/cities`).catch(() => {});
+}
+
 export async function searchProducts(
   query: string,
   lang: Lang,

@@ -15,6 +15,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { warmUpServer } from './src/api';
 import { FavoritesProvider } from './src/favorites';
 import { Lang, t } from './src/i18n';
 import { registerPushToken, scheduleComebackReminders } from './src/notifications';
@@ -36,6 +37,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('search');
 
   useEffect(() => {
+    warmUpServer();
     scheduleComebackReminders();
     registerPushToken();
   }, []);
