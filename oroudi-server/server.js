@@ -9,6 +9,15 @@ const PORT = process.env.PORT || 4000;
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'oroudi-admin';
 const CACHE_TTL_MS = 10 * 60 * 1000; // ١٠ دقائق لكل (متجر، كلمة، لغة)
 
+function isBrowserType(store) {
+  try {
+    const cfg = typeof store.config === 'string' ? JSON.parse(store.config) : store.config;
+    return cfg.type === 'browser';
+  } catch {
+    return false;
+  }
+}
+
 app.use(express.json({ limit: '1mb' }));
 app.use((req, res, next) => {
   res.set('Access-Control-Allow-Origin', req.headers.origin || '*');
@@ -72,6 +81,14 @@ app.get('/api/search', async (req, res) => {
       stores.map(async (store) => {
         const hit = getCache.get(store.key, qx, lang);
         if (hit && Date.now() - hit.ts < CACHE_TTL_MS) return JSON.parse(hit.json);
+
+        // متاجر نمط "browser" تحتاج Chrome حقيقي — غير متاح على استضافة Render
+        // المجانية. سكرابر مجدول خارجي (GitHub Actions) يغذي الكاش بدلًا من
+        // محاولة تشغيل متصفح هنا في كل طلب بحث (بطيء وسيفشل دائمًا).
+        if (isBrowserType(store)) {
+          return hit ? JSON.parse(hit.json) : [];
+        }
+
         const t0 = Date.now();
         try {
           const products = await scrapeStore(store, qx, lang);
@@ -303,6 +320,22 @@ app.post('/api/admin/refresh', requireAdmin, async (req, res) => {
   res.json({ ok: true, started: true });
 });
 
+// نقطة يغذّي منها سكرابر خارجي (GitHub Actions مثلًا يشغّل Chrome حقيقيًا)
+// كاش متاجر نمط "browser" التي لا يقدر هذا الخادم نفسه تشغيلها.
+app.post('/api/admin/push-cache', requireAdmin, (req, res) => {
+  const { store_key, query, lang, products } = req.body || {};
+  if (!store_key || !query || !Array.isArray(products)) {
+    return res.status(400).json({ error: 'store_key و query و products (مصفوفة) مطلوبة' });
+  }
+  db.prepare(
+    'INSERT OR REPLACE INTO cached (store_key, query, lang, json, ts) VALUES (?,?,?,?,?)',
+  ).run(store_key, query, lang || 'ar', JSON.stringify(products), Date.now());
+  db.prepare(
+    'INSERT INTO scrape_logs (store_key, query, ok, count, ms, error) VALUES (?,?,?,?,?,?)',
+  ).run(store_key, query, 1, products.length, 0, null);
+  res.json({ ok: true, count: products.length });
+});
+
 // يجلب صفحة متجر ويجهّزها للمعاينة داخل اللوحة: يزيل السكربتات (لا نريد
 // جافاسكربت الموقع الأصلي يعمل)، يضيف <base> لتصحيح روابط الصور/الأنماط،
 // ويحقن أداة الاختيار بالنقر الخاصة بنا.
@@ -446,7 +479,9 @@ const REFRESH_CONCURRENCY = 6;
 async function runRefresh(reason) {
   const started = Date.now();
   console.log(`⟳ بدء التحديث التلقائي (${reason})…`);
-  const stores = db.prepare('SELECT * FROM stores WHERE enabled = 1').all();
+  // متاجر نمط "browser" لا تُحدَّث هنا — Chrome غير متاح على هذه الاستضافة؛
+  // سكرابر GitHub Actions الخارجي يغذيها عبر /api/admin/push-cache.
+  const stores = db.prepare('SELECT * FROM stores WHERE enabled = 1').all().filter((s) => !isBrowserType(s));
   const queries = db.prepare('SELECT query FROM tracked_queries').all().map((r) => r.query);
   const putCache = db.prepare(
     'INSERT OR REPLACE INTO cached (store_key, query, lang, json, ts) VALUES (?,?,?,?,?)',

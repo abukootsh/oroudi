@@ -266,6 +266,32 @@ if (count === 0) {
       2,
     ),
   );
+
+  // ٧) نون — لا يحجب حتى Chromium البسيط، لكن نستخدم نمط browser للاتساق.
+  insert.run(
+    'noon',
+    'نون',
+    'Noon',
+    '#e8b007',
+    1,
+    JSON.stringify(
+      {
+        type: 'browser',
+        search_url: 'https://www.noon.com/saudi-ar/search/?q={q}',
+        extract: 'html',
+        item_selector: 'a[href*="/p/"]',
+        fields: {
+          name: { sel: '[class*="_title_"]' },
+          price: { sel: '[class*="_textCtr_"]' },
+          image: { sel: 'img[src*="pnsku"]', attr: 'src' },
+          url: { attr: 'href' },
+        },
+        url_prefix: 'https://www.noon.com',
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 module.exports = db;

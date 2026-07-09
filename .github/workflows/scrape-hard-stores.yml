@@ -1,0 +1,34 @@
+name: سكرابر المتاجر الصعبة (Chrome حقيقي)
+
+on:
+  schedule:
+    - cron: "0 9,21 * * *" # ١٢ ظهرًا و١٢ ليلًا بتوقيت السعودية (UTC+3)
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: oroudi-server/package-lock.json
+
+      - name: تثبيت الحزم
+        working-directory: oroudi-server
+        run: npm ci
+
+      - name: تثبيت Chrome حقيقي
+        working-directory: oroudi-server
+        run: npx playwright install --with-deps chrome
+
+      - name: تشغيل السكرابر
+        working-directory: oroudi-server
+        env:
+          ADMIN_TOKEN: ${{ secrets.OROUDI_ADMIN_TOKEN }}
+          OROUDI_SERVER: https://oroudi-server.onrender.com
+        run: node scrape-hard-stores.js
