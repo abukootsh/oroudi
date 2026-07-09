@@ -32,8 +32,8 @@ export interface PopularItem {
   count: number;
 }
 
-// عنوان خادم عروضي بعد النشر (Railway / Render / VPS...) — عدّله عند الإطلاق
-const PROD_SERVER = 'https://oroudi.example.com';
+// عنوان خادم عروضي المنشور على Render
+const PROD_SERVER = 'https://oroudi-server.onrender.com';
 
 // أثناء التطوير: نشتق عنوان جهازك تلقائيًا من Expo حتى يصل الجوال
 // للخادم على نفس الشبكة، والويب يستخدم localhost مباشرة.
