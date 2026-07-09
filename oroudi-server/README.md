@@ -4,7 +4,15 @@
 المتاجر تُدار بالكامل من **لوحة التحكم**، وكل متجر مجرد إعدادات JSON تحدد
 كيف يُقرأ بحثه وأسعاره (محرك سكرابر عام، بدون كتابة كود لكل متجر).
 
-## التشغيل
+## نشر الخادم مباشرة (بضغطة واحدة)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/abukootsh/oroudi)
+
+اضغط الزر، سجّل دخولك بحساب GitHub (لا كلمة مرور جديدة)، ثم Deploy.
+بعد اكتمال النشر انسخ الرابط الذي يعطيك إياه Render (شكله `https://oroudi-server-xxxx.onrender.com`)
+وحدّث به `PROD_SERVER` في [marker-app/src/api.ts](../marker-app/src/api.ts) ليعمل البحث في النسخة المنشورة على الويب.
+
+## التشغيل محليًا
 
 ```bash
 cd oroudi-server
