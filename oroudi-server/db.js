@@ -165,6 +165,48 @@ if (count === 0) {
       2,
     ),
   );
+
+  // ٤) بنده — بوابة API داخلية موحّدة (interactions gateway)، غير محمية.
+  //    الطلب الحقيقي يُمرَّر عبر ترويسات method/path بدل رابط مباشر.
+  insert.run(
+    'panda',
+    'بنده',
+    'Panda',
+    '#00a0a8',
+    1,
+    JSON.stringify(
+      {
+        search_url: 'https://panda.sa/api/interactions',
+        method: 'POST',
+        headers: {
+          method: 'GET',
+          path: '/products?search_key={q}&page=1',
+          'x-language': '{lang}',
+          'x-panda-source': 'PandaClick',
+          'api-version': '2026-01-01',
+          'x-pandaclick-agent': '4',
+          'x-session-id': '051E210C-08B8-40C0-BCD9-E86B91A8BF90',
+          version: 'v3',
+        },
+        body: '{}',
+        results_path: 'data.products',
+        fields: {
+          id: 'id',
+          name: 'name',
+          brand: 'brand.name',
+          image: 'varieties.0.imageURL',
+          price: 'varieties.0.price',
+          original_price: 'varieties.0.undiscounted_price',
+          unit: 'varieties.0.unit',
+          stock: 'varieties.0.availability',
+          url: 'id',
+        },
+        url_prefix: 'https://panda.sa/ar/p/',
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 module.exports = db;
