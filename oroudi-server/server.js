@@ -120,8 +120,7 @@ app.get('/api/popular', (req, res) => {
   res.json({ popular: rows.map((r) => ({ query: r.query, count: r.n })) });
 });
 
-// العروض — كل المنتجات المخفّضة من آخر نتائج مخزّنة
-app.get('/api/deals', (req, res) => {
+function computeDeals() {
   const rows = db
     .prepare('SELECT json FROM cached WHERE ts > ?')
     .all(Date.now() - 24 * 60 * 60 * 1000);
@@ -139,6 +138,19 @@ app.get('/api/deals', (req, res) => {
   deals.sort(
     (a, b) => (1 - a.price / a.original_price) < (1 - b.price / b.original_price) ? 1 : -1,
   );
+  return deals;
+}
+
+// العروض — كل المنتجات المخفّضة من آخر نتائج مخزّنة.
+// خوادم الاستضافة المجانية (مثل Render) تعيد الكاش لحالته الأولية بعد كل
+// نوم/إعادة تشغيل، فإن كان الكاش فارغًا نجلب دفعة طازجة فورًا قبل الرد
+// بدل انتظار الجدولة الدورية التي قد لا تُتاح لها فرصة العمل في الخلفية.
+app.get('/api/deals', async (req, res) => {
+  let deals = computeDeals();
+  if (deals.length === 0) {
+    await refreshAll('لا يوجد كاش — عند طلب صفحة العروض').catch(() => {});
+    deals = computeDeals();
+  }
   res.json({ count: deals.length, results: deals.slice(0, 100) });
 });
 
@@ -286,8 +298,8 @@ app.post('/api/admin/tracked', requireAdmin, (req, res) => {
   res.json({ ok: true, count: queries.length });
 });
 
-app.post('/api/admin/refresh', requireAdmin, (req, res) => {
-  refreshAll('يدوي من اللوحة'); // يعمل في الخلفية
+app.post('/api/admin/refresh', requireAdmin, async (req, res) => {
+  await refreshAll('يدوي من اللوحة').catch(() => {});
   res.json({ ok: true, started: true });
 });
 
@@ -417,48 +429,60 @@ app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'adm
 // يجلب الكلمات المتتبعة من كل المتاجر الفعّالة ويحدّث الكاش،
 // فتبقى «العروض» والأسعار الشائعة محدثة حتى بلا زوار.
 
-let refreshRunning = false;
+// عملية تحديث واحدة فقط تعمل في أي لحظة؛ أي طلب يصل أثناء تنفيذها
+// (مثل عدة زوار يفتحون صفحة العروض معًا) ينتظر نفس العملية بدل تكرارها.
+let refreshPromise = null;
 
-async function refreshAll(reason) {
-  if (refreshRunning) return;
-  refreshRunning = true;
+function refreshAll(reason) {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = runRefresh(reason).finally(() => {
+    refreshPromise = null;
+  });
+  return refreshPromise;
+}
+
+const REFRESH_CONCURRENCY = 6;
+
+async function runRefresh(reason) {
   const started = Date.now();
   console.log(`⟳ بدء التحديث التلقائي (${reason})…`);
-  try {
-    const stores = db.prepare('SELECT * FROM stores WHERE enabled = 1').all();
-    const queries = db.prepare('SELECT query FROM tracked_queries').all().map((r) => r.query);
-    const putCache = db.prepare(
-      'INSERT OR REPLACE INTO cached (store_key, query, lang, json, ts) VALUES (?,?,?,?,?)',
-    );
-    const logScrape = db.prepare(
-      'INSERT INTO scrape_logs (store_key, query, ok, count, ms, error) VALUES (?,?,?,?,?,?)',
-    );
-    let ok = 0;
-    let failed = 0;
-    for (const store of stores) {
-      for (const q of queries) {
-        const t0 = Date.now();
-        try {
-          const products = await scrapeStore(store, q, 'ar');
-          putCache.run(store.key, q, 'ar', JSON.stringify(products), Date.now());
-          logScrape.run(store.key, q, 1, products.length, Date.now() - t0, null);
-          ok += 1;
-        } catch (err) {
-          logScrape.run(store.key, q, 0, 0, Date.now() - t0, String(err.message || err));
-          failed += 1;
-        }
-        // مهلة قصيرة بين الطلبات حتى لا نُثقل على المتجر
-        await new Promise((r) => setTimeout(r, 400));
+  const stores = db.prepare('SELECT * FROM stores WHERE enabled = 1').all();
+  const queries = db.prepare('SELECT query FROM tracked_queries').all().map((r) => r.query);
+  const putCache = db.prepare(
+    'INSERT OR REPLACE INTO cached (store_key, query, lang, json, ts) VALUES (?,?,?,?,?)',
+  );
+  const logScrape = db.prepare(
+    'INSERT INTO scrape_logs (store_key, query, ok, count, ms, error) VALUES (?,?,?,?,?,?)',
+  );
+
+  const tasks = [];
+  for (const store of stores) for (const q of queries) tasks.push({ store, q });
+  let ok = 0;
+  let failed = 0;
+  let next = 0;
+
+  async function worker() {
+    while (next < tasks.length) {
+      const { store, q } = tasks[next++];
+      const t0 = Date.now();
+      try {
+        const products = await scrapeStore(store, q, 'ar');
+        putCache.run(store.key, q, 'ar', JSON.stringify(products), Date.now());
+        logScrape.run(store.key, q, 1, products.length, Date.now() - t0, null);
+        ok += 1;
+      } catch (err) {
+        logScrape.run(store.key, q, 0, 0, Date.now() - t0, String(err.message || err));
+        failed += 1;
       }
     }
-    db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?,?)').run(
-      'last_refresh',
-      JSON.stringify({ at: new Date().toISOString(), reason, ok, failed }),
-    );
-    console.log(`✓ اكتمل التحديث: ${ok} نجاح، ${failed} فشل، ${Math.round((Date.now() - started) / 1000)} ثانية`);
-  } finally {
-    refreshRunning = false;
   }
+  await Promise.all(Array.from({ length: REFRESH_CONCURRENCY }, worker));
+
+  db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?,?)').run(
+    'last_refresh',
+    JSON.stringify({ at: new Date().toISOString(), reason, ok, failed }),
+  );
+  console.log(`✓ اكتمل التحديث: ${ok} نجاح، ${failed} فشل، ${Math.round((Date.now() - started) / 1000)} ثانية`);
 }
 
 function msUntilNextNoonOrMidnight() {
