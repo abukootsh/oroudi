@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { fetchDeals, Product, productKey } from '../api';
 import ProductCard from '../components/ProductCard';
+import SkeletonCard from '../components/SkeletonCard';
 import { Lang, t } from '../i18n';
 import { colors, fonts, radius, space } from '../theme';
 
@@ -42,9 +43,10 @@ export default function DealsScreen({ lang }: { lang: Lang }) {
           </Pressable>
         </View>
       ) : deals === null ? (
-        <View style={styles.centerWrap}>
-          <ActivityIndicator size="large" color={colors.accent} />
-          <Text style={styles.centerText}>{t('loading', lang)}</Text>
+        <View style={styles.skeletonWrap}>
+          {Array.from({ length: 7 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
         </View>
       ) : (
         <FlatList
@@ -82,6 +84,7 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 18, fontFamily: fonts.bold, color: colors.ink },
   hint: { fontSize: 12, fontFamily: fonts.medium, color: colors.inkSoft, marginTop: 1 },
+  skeletonWrap: { flex: 1, paddingTop: space.sm },
   centerWrap: { alignItems: 'center', paddingTop: 48, gap: space.md },
   centerText: { fontSize: 14, color: colors.inkSoft, fontFamily: fonts.medium, textAlign: 'center' },
   retryButton: {

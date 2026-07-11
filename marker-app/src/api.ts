@@ -49,8 +49,23 @@ function resolveServer(): string {
 
 export const SERVER = resolveServer();
 
+// مفتاح فريد لكل منتج. متاجر المتصفح (نينجا، نون) لا تُرجع id فتُشتق من الاسم،
+// فقد يتكرر لمنتجين باسم واحد → مفاتيح متكررة تُربك FlatList فتظهر بطاقات
+// مكررة ولا يُعاد ترتيبها عند تغيير الفرز. الرابط فريد دائمًا فنعتمده أولًا.
 export function productKey(p: Product): string {
-  return `${p.store_key ?? p.chain}:${p.id}`;
+  return `${p.store_key ?? p.chain}:${p.url || p.id}`;
+}
+
+// نزيل المنتجات المكررة بصريًّا (نفس المتجر والاسم والسعر) — بعض المتاجر
+// تُدرج المنتج مرتين بروابط مختلفة، فتظهر بطاقتان متطابقتان للمستخدم.
+function dedupeProducts(items: Product[]): Product[] {
+  const seen = new Set<string>();
+  return items.filter((p) => {
+    const sig = `${p.store_key ?? p.chain}|${(p.name_ar || p.name || '').trim()}|${p.price}`;
+    if (seen.has(sig)) return false;
+    seen.add(sig);
+    return true;
+  });
 }
 
 export function discountPercent(p: Product): number {
@@ -76,8 +91,8 @@ export async function searchProducts(
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
   const results = (json.results ?? []) as Product[];
-  // فلتر دقة في التطبيق نفسه (لا يعتمد على نشر الخادم)
-  return filterRelevant(results, query);
+  // فلتر دقة في التطبيق نفسه (لا يعتمد على نشر الخادم) ثم إزالة المكرر البصري
+  return dedupeProducts(filterRelevant(results, query));
 }
 
 export async function fetchCities(): Promise<{ cities: City[]; selected: string }> {
@@ -99,7 +114,7 @@ export async function fetchDeals(_lang: Lang): Promise<Product[]> {
   const res = await fetch(`${SERVER}/api/deals`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
-  return (json.results ?? []) as Product[];
+  return dedupeProducts((json.results ?? []) as Product[]);
 }
 
 export async function registerDevice(token: string): Promise<void> {

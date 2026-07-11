@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   ScrollView,
@@ -21,6 +20,7 @@ import {
 import Chip from '../components/Chip';
 import PopularPills from '../components/PopularPills';
 import ProductCard from '../components/ProductCard';
+import SkeletonCard from '../components/SkeletonCard';
 import { Lang, POPULAR_QUERIES, t } from '../i18n';
 import { chainInfo, colors, fonts, radius, shadow, space } from '../theme';
 
@@ -157,9 +157,10 @@ export default function SearchScreen({ lang }: { lang: Lang }) {
       )}
 
       {loading && (
-        <View style={styles.centerWrap}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.centerText}>{t('loading', lang)}</Text>
+        <View style={styles.skeletonWrap}>
+          {Array.from({ length: 7 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
         </View>
       )}
 
@@ -314,6 +315,7 @@ const styles = StyleSheet.create({
   },
   popularTitle: { fontSize: 13, color: colors.ink, fontFamily: fonts.semibold, marginBottom: space.md },
   popularChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
+  skeletonWrap: { flex: 1, paddingTop: space.sm },
   centerWrap: { alignItems: 'center', paddingTop: 48, gap: space.md },
   centerText: { fontSize: 14, color: colors.inkSoft, fontFamily: fonts.medium, textAlign: 'center' },
   retryButton: {

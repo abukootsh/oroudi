@@ -16,6 +16,7 @@ interface Props {
 
 function ProductCardInner({ product, lang, cheapest }: Props) {
   const { isFavorite, toggleFavorite } = useFavorites();
+  const [imgError, setImgError] = React.useState(false);
   const rtl = lang === 'ar';
   const chain = chainInfo(product.chain);
   const chainColor = product.chain_color ?? chain.color;
@@ -57,8 +58,14 @@ function ProductCardInner({ product, lang, cheapest }: Props) {
         ]}
       >
         <View style={styles.imageBox}>
-          {product.image ? (
-            <Image source={{ uri: product.image }} style={styles.image} contentFit="contain" />
+          {product.image && !imgError ? (
+            <Image
+              source={{ uri: product.image }}
+              style={styles.image}
+              contentFit="contain"
+              transition={200}
+              onError={() => setImgError(true)}
+            />
           ) : (
             <Ionicons name="cube-outline" size={28} color={colors.inkFaint} />
           )}

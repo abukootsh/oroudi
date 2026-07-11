@@ -87,13 +87,13 @@ export default function App() {
         <SafeAreaView style={[styles.root, framed && styles.rootFramed]}>
           <StatusBar style="dark" />
 
-          {/* الهيدر — الضغط على الشعار يعيد للرئيسية (بحث) */}
+          {/* الهيدر — الشعار والنص موسّطان، الضغط عليه يعيد للرئيسية (بحث) */}
           <View style={styles.header}>
             <Pressable style={styles.brand} onPress={() => setTab('search')}>
               <View style={styles.logoBadge}>
-                <Ionicons name="basket" size={20} color={colors.white} />
+                <Ionicons name="basket" size={22} color={colors.white} />
               </View>
-              <View>
+              <View style={styles.brandTextWrap}>
                 <Text style={styles.brandTitle}>{t('appName', lang)}</Text>
                 <Text style={styles.brandTagline}>{t('brandSub', lang)}</Text>
               </View>
@@ -154,17 +154,18 @@ const styles = StyleSheet.create({
   },
   loading: { alignItems: 'center', justifyContent: 'center', flex: 1 },
   header: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: space.lg,
-    paddingTop: space.sm,
+    paddingTop: space.md,
     paddingBottom: space.md,
+    position: 'relative',
   },
   brand: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  brandTextWrap: { alignItems: 'center', gap: 4 },
   logoBadge: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: radius.md,
     backgroundColor: colors.primary,
     alignItems: 'center',
@@ -172,8 +173,11 @@ const styles = StyleSheet.create({
     ...shadow.raised,
   },
   brandTitle: { fontSize: 22, fontFamily: fonts.bold, color: colors.ink, lineHeight: 26 },
-  brandTagline: { fontSize: 11, fontFamily: fonts.medium, color: colors.inkFaint },
+  brandTagline: { fontSize: 11.5, fontFamily: fonts.medium, color: colors.inkFaint },
   langButton: {
+    position: 'absolute',
+    top: space.md,
+    insetInlineStart: space.lg, // البداية (يسار في RTL) — لا يزاحم الشعار الموسّط
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
