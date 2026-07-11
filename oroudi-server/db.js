@@ -331,6 +331,37 @@ CREATE TABLE IF NOT EXISTS settings (
       2,
     ),
   );
+
+  // ٩) نينجا — صفحة البحث تُصيَّر بالكامل في HTML (بلا تسجيل دخول ولا عنوان).
+  //    خلف حماية بوت، فنستخدم النمط المتخفّي (stealth) ونقرأ بمحددات CSS.
+  //    كل بطاقة داخل <a> واحد يلتف على الاسم والسعر والصورة.
+  insert.run(
+    'ninja',
+    'نينجا',
+    'Ninja',
+    '#5b2d90',
+    1,
+    JSON.stringify(
+      {
+        type: 'browser',
+        stealth: true,
+        search_url: 'https://ananinja.com/sa/{lang}/product/search?q={q}',
+        wait_until: 'domcontentloaded',
+        wait_ms: 6000,
+        extract: 'html',
+        item_selector: 'a[href*="/product/"]:not([href*="search"])',
+        fields: {
+          name: { sel: 'h3' },
+          price: { sel: 'p.font-medium' },
+          image: { sel: 'img', attr: 'src' },
+          url: { attr: 'href' },
+        },
+        url_prefix: 'https://ananinja.com',
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 module.exports = db;
