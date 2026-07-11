@@ -95,6 +95,20 @@ app.get('/api/cities', (req, res) => {
   res.json({ cities: CITIES, selected: 'riyadh' });
 });
 
+// نبضة تشخيص: تكشف أي نسخة كود يشغّلها الخادم وحالة ترطيب كاش المتصفح.
+// build يُحدَّث يدويًا عند كل تغيير مهم لتأكيد أن Render نشر الأحدث.
+app.get('/api/health', (req, res) => {
+  const storeCount = db.prepare('SELECT COUNT(*) c FROM stores').get().c;
+  const cachedRows = db.prepare('SELECT COUNT(*) c FROM cached').get().c;
+  res.json({
+    build: 'hydrate-v1',
+    stores: storeCount,
+    cachedRows,
+    lastHydrate: lastHydrate ? new Date(lastHydrate).toISOString() : null,
+    uptimeSec: Math.round(process.uptime()),
+  });
+});
+
 // مرادفات شائعة: لو كلمة الزائر لم تُرجع شيئًا نعيد البحث بمرادفها
 const SYNONYMS = {
   'رز': 'أرز',
