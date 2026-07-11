@@ -1,0 +1,26 @@
+name: نشر Render تلقائيًا (Deploy Hook)
+
+# نشر Render المدمج (On Commit) متوقّف فعليًا، فنستبدله بـ Deploy Hook: عند أي
+# تغيير في كود الخادم نستدعي رابط النشر السرّي فيسحب Render أحدث كوميت ويبنيه.
+# نتجاهل تغييرات lقطة الأسعار (browser-cache.json) لأن الخادم يجلبها من GitHub
+# raw وقت التشغيل بلا حاجة لإعادة نشر.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'oroudi-server/**'
+      - '!oroudi-server/browser-cache.json'
+  workflow_dispatch: # يسمح بالتشغيل اليدوي من تبويب Actions
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: استدعاء Render Deploy Hook
+        run: |
+          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK }}" ]; then
+            echo "❌ السر RENDER_DEPLOY_HOOK غير مضبوط — أضِفه في إعدادات المستودع"
+            exit 1
+          fi
+          curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+          echo "✅ أُرسل طلب النشر إلى Render"
