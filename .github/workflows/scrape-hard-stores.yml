@@ -9,6 +9,8 @@ jobs:
   scrape:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write # لالتزام لقطة browser-cache.json إلى المستودع
     steps:
       - uses: actions/checkout@v4
 
@@ -35,3 +37,16 @@ jobs:
           OROUDI_SERVER: https://oroudi-server.onrender.com
         # xvfb-run يوفّر شاشة وهمية للمتصفح المتخفّي (لولو) غير-headless
         run: xvfb-run -a node scrape-hard-stores.js
+
+      - name: التزام اللقطة الدائمة (browser-cache.json)
+        # يجلبها الخادم من GitHub raw عند الإقلاع فيتعافى من مسح قرص Render
+        run: |
+          git config user.name "oroudi-scraper[bot]"
+          git config user.email "scraper@users.noreply.github.com"
+          git add oroudi-server/browser-cache.json
+          if git diff --cached --quiet; then
+            echo "لا تغيير في اللقطة"
+          else
+            git commit -m "تحديث لقطة أسعار متاجر المتصفح [skip ci]"
+            git push
+          fi

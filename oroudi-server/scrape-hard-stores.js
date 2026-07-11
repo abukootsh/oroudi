@@ -60,6 +60,10 @@ async function main() {
   const { queries } = await api('/api/admin/tracked');
   console.log(`متاجر: ${browserStores.map((s) => s.key).join(', ')} | كلمات: ${queries.length}`);
 
+  // لقطة دائمة: نجمع كل النتائج ونكتبها في browser-cache.json المُلتزَم في
+  // المستودع. الخادم يجلبها من GitHub raw عند الإقلاع فيتعافى من مسح قرص
+  // Render فورًا (بلا انتظار الكشط التالي). نبقي push-cache أيضًا للفورية.
+  const snapshot = {};
   let ok = 0;
   let failed = 0;
   for (const store of browserStores) {
@@ -71,14 +75,29 @@ async function main() {
           method: 'POST',
           body: JSON.stringify({ store_key: store.key, query: q, lang: 'ar', products }),
         });
+        (snapshot[store.key] ||= {})[q] = products;
         console.log(`✓ ${store.key} / ${q}: ${products.length} منتج (${Date.now() - t0}ms)`);
         ok += 1;
       } catch (err) {
+        // نُبقي أي نتيجة سابقة لهذه الكلمة في اللقطة إن وُجدت (لا نفرّغها بالفشل)
         console.log(`✗ ${store.key} / ${q}: ${err.message}`);
         failed += 1;
       }
     }
   }
+
+  // نكتب اللقطة فقط إن نجح جزء معقول (نتفادى الكتابة بلقطة شبه فارغة تُفسد
+  // بيانات جيدة سابقة إن فشلت الجولة كلها لعارض شبكي مؤقت).
+  const fs = require('fs');
+  const path = require('path');
+  const outPath = path.join(__dirname, 'browser-cache.json');
+  if (ok > 0) {
+    fs.writeFileSync(outPath, JSON.stringify(snapshot));
+    console.log(`💾 كُتبت اللقطة: ${outPath} (${Object.keys(snapshot).length} متجر)`);
+  } else {
+    console.log('لم تُكتب اللقطة (لا نجاحات) — أُبقيت اللقطة السابقة كما هي');
+  }
+
   console.log(`\nاكتمل: ${ok} نجاح، ${failed} فشل`);
 }
 

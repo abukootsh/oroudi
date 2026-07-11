@@ -18,6 +18,53 @@ function isBrowserType(store) {
   }
 }
 
+// ---- ترطيب كاش متاجر المتصفح من لقطة دائمة في المستودع ----
+// متاجر المتصفح (لولو، نينجا، كارفور، نون، هنقرستيشن) لا يمكن كشطها هنا (لا
+// Chrome على استضافة Render المجانية)؛ سكرابر GitHub Actions يكشطها ويحفظ
+// لقطة browser-cache.json في المستودع. المشكلة: Render يمسح القرص عند كل
+// إقلاع بارد فيضيع الكاش. الحل: عند الإقلاع (وعند فقدان الكاش في البحث) نجلب
+// اللقطة من GitHub raw ونعيد ملء الكاش — فيتعافى النظام فورًا من أي مسح، دون
+// انتظار الكشط المجدول ولا نشر Render اليدوي (raw يعكس آخر دفعة دائمًا).
+const BROWSER_CACHE_URL =
+  process.env.BROWSER_CACHE_URL ||
+  'https://raw.githubusercontent.com/abukootsh/oroudi/main/oroudi-server/browser-cache.json';
+let lastHydrate = 0;
+let hydrating = null;
+
+async function doHydrate() {
+  const res = await fetch(`${BROWSER_CACHE_URL}?t=${Date.now()}`); // t=... يتجاوز كاش CDN
+  if (!res.ok) throw new Error(`browser-cache HTTP ${res.status}`);
+  const snap = await res.json();
+  const put = db.prepare(
+    'INSERT OR REPLACE INTO cached (store_key, query, lang, json, ts) VALUES (?,?,?,?,?)',
+  );
+  const now = Date.now();
+  let n = 0;
+  const tx = db.transaction((data) => {
+    for (const storeKey of Object.keys(data)) {
+      for (const query of Object.keys(data[storeKey])) {
+        put.run(storeKey, query, 'ar', JSON.stringify(data[storeKey][query]), now);
+        n += 1;
+      }
+    }
+  });
+  tx(snap);
+  lastHydrate = now;
+  console.log(`💧 رُطِّب كاش المتصفح من اللقطة: ${n} (متجر،كلمة)`);
+}
+
+// يرطّب مرة كل ١٠ دقائق كحد أقصى؛ force للإقلاع. لا يرمي (اللقطة قد لا توجد بعد).
+async function ensureBrowserCache(force = false) {
+  if (hydrating) return hydrating;
+  if (!force && Date.now() - lastHydrate < 10 * 60 * 1000) return undefined;
+  hydrating = doHydrate()
+    .catch((err) => console.log(`تحذير: تعذّر ترطيب كاش المتصفح: ${err.message}`))
+    .finally(() => {
+      hydrating = null;
+    });
+  return hydrating;
+}
+
 app.use(express.json({ limit: '1mb' }));
 app.use((req, res, next) => {
   res.set('Access-Control-Allow-Origin', req.headers.origin || '*');
@@ -122,6 +169,10 @@ app.get('/api/search', async (req, res) => {
   if (!q) return res.status(400).json({ error: 'q مطلوب' });
 
   const started = Date.now();
+  // إن مُسح القرص (إقلاع Render البارد) يكون كاش المتصفح فارغًا — نرطّبه من
+  // اللقطة الدائمة أولًا (no-op إن رُطِّب خلال آخر ١٠ دقائق) كي تظهر متاجر
+  // المتصفح فورًا في أول بحث بعد المسح.
+  await ensureBrowserCache();
   const stores = db.prepare('SELECT * FROM stores WHERE enabled = 1').all();
   const errors = {};
   const getCache = db.prepare(
@@ -226,6 +277,7 @@ function computeDeals() {
 // نوم/إعادة تشغيل، فإن كان الكاش فارغًا نجلب دفعة طازجة فورًا قبل الرد
 // بدل انتظار الجدولة الدورية التي قد لا تُتاح لها فرصة العمل في الخلفية.
 app.get('/api/deals', async (req, res) => {
+  await ensureBrowserCache(); // عروض متاجر المتصفح تأتي من اللقطة الدائمة
   let deals = computeDeals();
   if (deals.length === 0) {
     await refreshAll('لا يوجد كاش — عند طلب صفحة العروض').catch(() => {});
@@ -611,6 +663,11 @@ scheduleRefreshLoop();
     setTimeout(() => refreshAll('عند الإقلاع'), 3000);
   }
 }
+
+// عند الإقلاع: رطّب كاش المتصفح من اللقطة الدائمة فورًا كي تعمل متاجر المتصفح
+// مباشرة بعد أي مسح قرص (إقلاع Render البارد)، ثم أعده كل ساعة كطبقة أمان.
+ensureBrowserCache(true);
+setInterval(() => ensureBrowserCache(true), 60 * 60 * 1000);
 
 app.listen(PORT, () => {
   console.log(`عروضي server → http://localhost:${PORT}`);
