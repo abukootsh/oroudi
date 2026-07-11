@@ -116,6 +116,8 @@ const STORES = [
       fields: {
         name: { sel: '[class*="_title_"]' },
         price: { sel: '[class*="_sellingPrice_"]' },
+        // السعر قبل الخصم (المشطوب) لإظهار عروض نون في صفحة العروض
+        original_price: { sel: '[class*="_oldPrice_"]' },
         image: { sel: 'img[src*="nooncdn.com/p/"]', attr: 'src' },
         url: { attr: 'href' },
       },
@@ -145,7 +147,10 @@ const STORES = [
       item_selector: 'a[href*="/product/"]:not([href*="search"])',
       fields: {
         name: { sel: 'h3' },
+        // السعر الحالي: أول p.font-medium (الأحمر عند الخصم، الرمادي بلا خصم)
         price: { sel: 'p.font-medium' },
+        // السعر قبل الخصم (المشطوب) لإظهار عروض نينجا في صفحة العروض
+        original_price: { sel: 'p.line-through' },
         image: { sel: 'img', attr: 'src' },
         url: { attr: 'href' },
       },
