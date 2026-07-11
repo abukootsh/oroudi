@@ -2,6 +2,7 @@
 // حقيقي بعكس استضافة الخادم المجانية). يجلب متاجر نمط "browser" من لوحة
 // التحكم، يكشط كل كلمة متتبعة، ويغذّي كاش الخادم الحي عبر push-cache.
 const { scrapeStore } = require('./scraper');
+const { STORES } = require('./seed-data');
 
 const SERVER = process.env.OROUDI_SERVER || 'https://oroudi-server.onrender.com';
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
@@ -21,6 +22,28 @@ async function api(path, opts = {}) {
 }
 
 async function main() {
+  // تعافٍ ذاتي: نضمن وجود متاجر المتصفح في الخادم الحي قبل الكشط. إن مسحت
+  // Render القرص وأعادت البذر من كودٍ قديم بلا لولو/نينجا، يعيدها هذا التشغيل
+  // (كل ١٢ ساعة) تلقائيًا — فلا يعتمد بقاؤها على نشر Render اليدوي. نضيف الناقص
+  // فقط حتى لا نطمس أي تعديل يدوي أجراه المستخدم على متجر موجود من اللوحة.
+  {
+    const existing = new Set((await api('/api/admin/stores')).stores.map((s) => s.key));
+    for (const s of STORES.filter((x) => x.config.type === 'browser' && !existing.has(x.key))) {
+      try {
+        await api('/api/admin/stores', {
+          method: 'POST',
+          body: JSON.stringify({
+            key: s.key, name_ar: s.name_ar, name_en: s.name_en,
+            color: s.color, enabled: true, config: s.config,
+          }),
+        });
+        console.log(`↻ أُعيد إنشاء متجر ناقص: ${s.key}`);
+      } catch (err) {
+        console.log(`تحذير: تعذّر ضمان متجر ${s.key}: ${err.message}`);
+      }
+    }
+  }
+
   const { stores } = await api('/api/admin/stores');
   const browserStores = stores.filter((s) => {
     try {
