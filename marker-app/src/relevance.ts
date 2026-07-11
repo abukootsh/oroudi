@@ -10,7 +10,7 @@ const SYNONYMS: Record<string, string> = {
   مياه: 'ماء',
 };
 
-function normalizeAr(text: string): string {
+export function normalizeAr(text: string): string {
   return String(text || '')
     .replace(/[ً-ْٰ]/g, '') // التشكيل
     .replace(/[أإآ]/g, 'ا')

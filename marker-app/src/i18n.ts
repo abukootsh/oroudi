@@ -39,6 +39,8 @@ const strings = {
   openInStore: { ar: 'افتح في المتجر', en: 'Open in store' },
   was: { ar: 'كان', en: 'was' },
   sar: { ar: 'ر.س', en: 'SAR' },
+  dealsSearchPlaceholder: { ar: 'ابحث في العروض…', en: 'Search deals…' },
+  dealsNoMatch: { ar: 'لا عروض تطابق بحثك', en: 'No deals match your search' },
   dealsTitle: { ar: 'أفضل العروض اليوم', en: 'Best deals today' },
   dealsHint: {
     ar: 'اضغط على أي عرض ليفتح في موقع المتجر بتبويب جديد',
@@ -49,8 +51,8 @@ const strings = {
     en: 'Tap ♡ on any product to save it here',
   },
   searchIdle: {
-    ar: 'اكتب اسم منتج وسنقارن لك سعره في كل الأسواق',
-    en: 'Type a product and we compare its price everywhere',
+    ar: 'اكتب اسم منتج وسنقارن لك سعره في كل الأسواق التسعة:\nالتميمي · الدانوب · بن داود · بنده · هنقرستيشن · كارفور · نون · لولو · نينجا',
+    en: 'Type a product and we compare its price across all 9 stores:\nTamimi · Danube · BinDawood · Panda · HungerStation · Carrefour · Noon · Lulu · Ninja',
   },
   loading: { ar: 'جارٍ المقارنة…', en: 'Comparing…' },
 };
