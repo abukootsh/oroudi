@@ -70,7 +70,9 @@ async function main() {
     for (const q of queries) {
       const t0 = Date.now();
       try {
-        const products = await scrapeStore(store, q, 'ar', 30000);
+        // نتائج المتجر مرتّبة بالصلة (الأنسب أولًا)؛ نكتفي بأول ٨٠ لكل كلمة كي
+        // تبقى اللقطة وحمولة التطبيق خفيفة (نينجا يرجع حتى ٤٠٠ لكلمة واحدة).
+        const products = (await scrapeStore(store, q, 'ar', 30000)).slice(0, 80);
         await api('/api/admin/push-cache', {
           method: 'POST',
           body: JSON.stringify({ store_key: store.key, query: q, lang: 'ar', products }),
