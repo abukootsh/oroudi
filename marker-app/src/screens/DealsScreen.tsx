@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { fetchDeals, Product, productKey } from '../api';
 import ProductCard from '../components/ProductCard';
@@ -21,6 +21,12 @@ export default function DealsScreen({ lang }: { lang: Lang }) {
   }, [lang]);
 
   useEffect(load, [load]);
+
+  // العروض من الأرخص للأغلى
+  const sortedDeals = useMemo(
+    () => (deals ? [...deals].sort((a, b) => a.price - b.price) : null),
+    [deals],
+  );
 
   return (
     <View style={styles.container}>
@@ -50,7 +56,7 @@ export default function DealsScreen({ lang }: { lang: Lang }) {
         </View>
       ) : (
         <FlatList
-          data={deals}
+          data={sortedDeals}
           keyExtractor={productKey}
           renderItem={({ item }) => <ProductCard product={item} lang={lang} />}
           contentContainerStyle={styles.list}

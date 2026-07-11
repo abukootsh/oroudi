@@ -20,7 +20,8 @@ const STORES = [
       headers: { 'Accept-Language': '{lang}', 'User-Agent': 'Mozilla/5.0' },
       results_path: 'data.product',
       fields: {
-        id: 'id', name: 'name', brand: 'brand.name', image: 'images.0', url: 'slug',
+        // الصورة تحت variants[0].images[0] لا في images العلوي (يكون null غالبًا)
+        id: 'id', name: 'name', brand: 'brand.name', image: 'variants.0.images.0', url: 'slug',
         unit: 'variants.0.name', price: 'variants.0.storeSpecificData.0.mrp',
         discount_amount: 'variants.0.storeSpecificData.0.discount',
         stock: 'variants.0.storeSpecificData.0.stock',

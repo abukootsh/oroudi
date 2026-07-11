@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   brand: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  brandTextWrap: { alignItems: 'center', gap: 4 },
+  brandTextWrap: { alignItems: 'center', gap: 7 },
   logoBadge: {
     width: 44,
     height: 44,
